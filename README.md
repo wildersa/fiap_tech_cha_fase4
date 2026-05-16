@@ -74,6 +74,3 @@ src/stock_lstm/
   utils.py
 ```
 
-## Observação
-
-O baseline “amanhã = último fechamento” é calculado junto com a LSTM porque, em séries de preço de ações, esse baseline costuma ser muito competitivo.
