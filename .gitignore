@@ -170,3 +170,8 @@ models/
 # Logs
 logs/
 *.log
+docs/
+scripts/
+*.sh
+
+sample_request.json

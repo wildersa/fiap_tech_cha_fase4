@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "tech-challenge-lstm"
+version = "0.1.0"
+description = "Tech Challenge Fase 4 - LSTM para previsão de fechamento de ações"
+authors = ["Wilder"]
+readme = "README.md"
+packages = [{ include = "stock_lstm", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+numpy = "^1.26.0"
+pandas = "^2.2.0"
+scikit-learn = "^1.5.0"
+joblib = "^1.4.0"
+torch = "^2.5.0"
+yfinance = "^0.2.50"
+fastapi = "^0.115.0"
+uvicorn = { extras = ["standard"], version = "^0.32.0" }
+pydantic = "^2.9.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
