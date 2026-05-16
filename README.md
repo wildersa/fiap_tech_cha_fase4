@@ -1,74 +1,79 @@
-# StockPredict-LSTM: Bolsa de Valores com Deep Learning
+# Tech Challenge Fase 4 — LSTM para previsão de fechamento
 
-![Python](https://img.shields.io/badge/python-3.14-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-orange.svg)
+Código base modular para o Tech Challenge: coleta/preprocessamento, treino LSTM, avaliação, salvamento dos artefatos e API FastAPI.
 
-Este projeto faz parte do **Tech Challenge - Fase 4** da Pós-Tech FIAP (Machine Learning Engineering). O objetivo principal é desenvolver e implantar um modelo de Deep Learning capaz de prever os preços de fechamento de ações da bolsa de valores utilizando redes neurais recorrentes do tipo **LSTM (Long Short-Term Memory)**.
+## Instalação com Poetry
 
-## 🎯 Objetivo
+```bash
+poetry install
+```
 
-Desenvolver um pipeline completo de Machine Learning, desde a coleta de dados financeiros em tempo real até o deploy de uma API escalável, focando na predição de séries temporais.
+Se for usar GPU NVIDIA, instale o PyTorch CUDA compatível com seu ambiente antes de rodar o treino.
 
-## 🚀 Funcionalidades
+## Treinar usando CSV local
 
-- **Coleta Automatizada**: Integração com a API do Yahoo Finance (`yfinance`) para download de dados históricos.
-- **Storage Flexível**: Suporte para salvamento de dados Local, AWS S3 ou Azure Blob Storage.
-- **Modelo de Deep Learning**: Arquitetura LSTM otimizada para capturar dependências temporais em séries financeiras.
-- **API REST**: Interface para consumo das predições desenvolvida em FastAPI/Flask.
-- **Monitoramento**: Rastreamento de performance e recursos em tempo real.
-
-## 🏗️ Estrutura do Projeto
+O CSV precisa conter pelo menos:
 
 ```text
-├── data/               # Conjuntos de dados (brutos e processados)
-├── docs/               # Documentação e PDFs de referência
-├── models/             # Pesos dos modelos treinados (.pth ou .h5)
-├── notebooks/          # Experimentos e Análise Exploratória (EDA)
-├── scripts/            # Scripts utilitários
-├── src/                # Código-fonte principal
-│   ├── data/           # Scripts de coleta e ingestão
-│   ├── features/       # Pré-processamento e engenharia de features
-│   ├── models/         # Definição e treinamento da rede LSTM
-│   └── api/            # API REST para deploy do modelo
-├── tests/              # Testes unitários e de integração
-├── pyproject.toml      # Gerenciamento de dependências
-└── README.md
+Date, Open, High, Low, Close, Volume
 ```
 
-## 🛠️ Instalação
+Também aceita nomes em minúsculo.
 
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/seu-usuario/fiap-tech-challenge-fase4.git
-   ```
-
-2. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   # Ou use poetry se disponível
-   poetry install
-   ```
-
-## 💻 Uso
-
-### Coleta de Dados
-
-Para coletar dados de uma ação específica:
 ```bash
-python src/data/collect_data.py --symbol "PETR4.SA" --interval "1h" --storage "local"
+poetry run python -m stock_lstm.train \
+  --csv data/raw/petr4_long_term.csv \
+  --symbol PETR4.SA \
+  --output-dir models/lstm_petr4
 ```
 
-## 📊 Avaliação do Modelo
+## Treinar usando yfinance
 
-O desempenho do modelo será medido utilizando as seguintes métricas:
-- **MAE** (Mean Absolute Error)
-- **RMSE** (Root Mean Square Error)
-- **MAPE** (Mean Absolute Percentage Error)
+```bash
+poetry run python -m stock_lstm.train \
+  --symbol PETR4.SA \
+  --start-date 2018-01-01 \
+  --output-dir models/lstm_petr4
+```
 
-## 📄 Licença
+## Rodar API
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+```bash
+poetry run uvicorn stock_lstm.api:app --reload
+```
 
----
-*Desenvolvido como parte do currículo da Pós-Tech FIAP.*
+## Endpoint
+
+```http
+POST /predict
+```
+
+A API recebe dados recentes, monta a última janela temporal e prevê o próximo fechamento.
+
+O modelo não é retreinado na API. A API só faz inferência.
+
+## Teste via curl
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d @sample_request.json
+```
+
+## Estrutura
+
+```text
+src/stock_lstm/
+  api.py
+  config.py
+  data_loader.py
+  model.py
+  predict.py
+  preprocessing.py
+  train.py
+  utils.py
+```
+
+## Observação
+
+O baseline “amanhã = último fechamento” é calculado junto com a LSTM porque, em séries de preço de ações, esse baseline costuma ser muito competitivo.
