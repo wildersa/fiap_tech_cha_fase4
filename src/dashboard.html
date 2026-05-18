@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StockLSTM Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --text: #1f2933;
+      --muted: #667085;
+      --line: #d9dee7;
+      --accent: #1455d9;
+      --danger: #c73535;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+    h1 { font-size: 22px; margin: 0; }
+    .shortcut-bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .shortcut-bar a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      background: #fbfcfe;
+    }
+    .shortcut-bar a:hover { border-color: var(--accent); color: var(--accent); }
+    main { max-width: 1220px; margin: 0 auto; padding: 24px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tabs button, .primary {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tabs button.active, .primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .grid { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 16px; align-items: start; }
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+    .panel h2 { font-size: 16px; margin: 0 0 12px; }
+    .panel p { line-height: 1.45; }
+    textarea {
+      width: 100%;
+      min-height: 420px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfcfe; min-height: 82px; }
+    .card span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    .card strong { font-size: 21px; overflow-wrap: anywhere; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .error { color: var(--danger); margin-top: 10px; white-space: pre-wrap; }
+    .hidden { display: none; }
+    code { background: #eef2f7; border: 1px solid #d9dee7; border-radius: 4px; padding: 1px 4px; }
+    pre { white-space: pre-wrap; background: #101828; color: #f9fafb; border-radius: 8px; padding: 14px; overflow: auto; }
+    canvas { width: 100%; max-height: 360px; }
+    @media (max-width: 900px) {
+      .grid, .home-grid { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>StockLSTM Dashboard</h1>
+      <div class="muted">Modelo LSTM, inferência por fechamentos e telemetria operacional</div>
+    </div>
+    <nav class="shortcut-bar" aria-label="Atalhos da API">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/docs">Swagger</a>
+      <a href="/openapi.json">OpenAPI</a>
+      <a href="/health">Health</a>
+      <a href="/model-card">Modelo</a>
+      <a href="/telemetry">Telemetria</a>
+      <a href="/metrics">Prometheus</a>
+    </nav>
+  </header>
+  <main>
+    <div class="muted" style="margin-bottom: 12px;">Artefatos: __MODEL_DIR__</div>
+    <div class="tabs">
+      <button id="tab-home" class="active" onclick="showTab('home')">Home</button>
+      <button id="tab-inference" onclick="showTab('inference')">Inferência</button>
+      <button id="tab-telemetry" onclick="showTab('telemetry')">Telemetria</button>
+    </div>
+
+    <section id="home" class="home-grid">
+      <div class="panel">
+        <h2>Modelo</h2>
+        <p>Esta API usa uma LSTM univariada treinada apenas com preços de fechamento. O treino transforma os fechamentos em <strong>log-retornos</strong>, porque variações tendem a ser mais estáveis do que o preço bruto.</p>
+        <p>No momento da inferência, o usuário envia uma lista de fechamentos. A API calcula os log-retornos, aplica o scaler salvo, executa a LSTM e reconstrói o preço previsto com <code>last_close * exp(predicted_log_return)</code>.</p>
+        <div class="cards">
+          <div class="card"><span>Entrada</span><strong>closes</strong></div>
+          <div class="card"><span>Alvo</span><strong>log-retorno</strong></div>
+          <div class="card"><span>Saída</span><strong>preço</strong></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Resumo do artefato</h2>
+        <pre id="modelCardData">Carregando...</pre>
+      </div>
+    </section>
+
+    <section id="inference" class="grid hidden">
+      <div class="panel">
+        <h2>Payload JSON</h2>
+        <p class="muted">Envie fechamentos em ordem cronológica. O mínimo é window_size + 1; com a configuração padrão, 61 valores.</p>
+        <textarea id="payload">__SAMPLE_PAYLOAD__</textarea>
+        <div style="margin-top: 12px;">
+          <button class="primary" onclick="runPrediction()">Predizer próximo fechamento</button>
+        </div>
+        <div id="error" class="error"></div>
+      </div>
+      <div class="panel">
+        <h2>Resultado</h2>
+        <div class="cards">
+          <div class="card"><span>Último fechamento</span><strong id="lastClose">-</strong></div>
+          <div class="card"><span>Previsão LSTM</span><strong id="predictedClose">-</strong></div>
+          <div class="card"><span>Direção prevista</span><strong id="direction">-</strong></div>
+          <div class="card"><span>Retorno previsto</span><strong id="returnPct">-</strong></div>
+          <div class="card"><span>Diferença</span><strong id="diffAbs">-</strong></div>
+          <div class="card"><span>Latência medida</span><strong id="latency">-</strong></div>
+        </div>
+        <canvas id="priceChart"></canvas>
+      </div>
+    </section>
+
+    <section id="telemetry" class="panel hidden">
+      <h2>Telemetria operacional</h2>
+      <p class="muted">Estas métricas medem saúde da API em produção: chamadas, latência, erros, CPU e memória. O endpoint Prometheus técnico fica em /metrics.</p>
+      <pre id="telemetryData">Carregando...</pre>
+    </section>
+  </main>
+  <script>
+    let chart = null;
+
+    function showTab(name) {
+      for (const tab of ['home', 'inference', 'telemetry']) {
+        document.getElementById(tab).classList.toggle('hidden', name !== tab);
+        document.getElementById('tab-' + tab).classList.toggle('active', name === tab);
+      }
+      if (name === 'home') loadModelCard();
+      if (name === 'telemetry') loadTelemetry();
+    }
+
+    function money(value) {
+      return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    async function runPrediction() {
+      const error = document.getElementById('error');
+      error.textContent = '';
+      let payload;
+      try {
+        payload = JSON.parse(document.getElementById('payload').value);
+      } catch (err) {
+        error.textContent = 'JSON inválido: ' + err.message;
+        return;
+      }
+
+      const start = performance.now();
+      const response = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const elapsed = performance.now() - start;
+      const data = await response.json();
+      if (!response.ok) {
+        error.textContent = data.detail || JSON.stringify(data, null, 2);
+        return;
+      }
+
+      document.getElementById('lastClose').textContent = money(data.last_close);
+      document.getElementById('predictedClose').textContent = money(data.predicted_close);
+      document.getElementById('direction').textContent = data.predicted_direction;
+      document.getElementById('returnPct').textContent = Number(data.predicted_return_pct).toFixed(3) + '%';
+      document.getElementById('diffAbs').textContent = money(data.predicted_change_abs);
+      document.getElementById('latency').textContent = elapsed.toFixed(1) + ' ms';
+      renderChart(payload.closes || [], data.predicted_close);
+      loadTelemetry();
+    }
+
+    function renderChart(closes, predicted) {
+      const recent = closes.slice(-30).map(Number);
+      const labels = recent.map((_, i) => String(i - recent.length + 1)).concat(['próxima']);
+      const closeSeries = recent.concat(null);
+      const predictedSeries = new Array(recent.length).fill(null).concat(Number(predicted));
+      const ctx = document.getElementById('priceChart');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Fechamentos recentes', data: closeSeries, borderColor: '#1455d9', backgroundColor: '#1455d9', tension: 0.2 },
+            { label: 'Previsão', data: predictedSeries, borderColor: '#c73535', backgroundColor: '#c73535', pointRadius: 5 }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { x: { ticks: { maxRotation: 0, autoSkip: true } } }
+        }
+      });
+    }
+
+    async function loadTelemetry() {
+      const response = await fetch('/telemetry');
+      const data = await response.json();
+      document.getElementById('telemetryData').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function loadModelCard() {
+      const response = await fetch('/model-card');
+      const data = await response.json();
+      document.getElementById('modelCardData').textContent = JSON.stringify(data, null, 2);
+    }
+
+    loadModelCard();
+    loadTelemetry();
+  </script>
+</body>
+</html>

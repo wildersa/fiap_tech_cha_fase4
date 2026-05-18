@@ -1,9 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cu129
+
 numpy
 pandas
 scikit-learn
 joblib
-torch
+torch==2.10.0+cu129
 yfinance
+mlflow
+matplotlib
 fastapi
 uvicorn[standard]
 pydantic
+psutil
+prometheus-fastapi-instrumentator

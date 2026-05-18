@@ -161,7 +161,11 @@ data/
 
 # Project specific - Models & Scalers
 src/models/
-models/
+models/*
+!models/.gitkeep
+!models/lstm_petr4/
+models/lstm_petr4/*
+!models/lstm_petr4/.gitkeep
 *.pt
 *.pth
 *.pkl
@@ -177,3 +181,10 @@ scripts/
 *.sh
 
 sample_request.json
+
+# MLflow runs
+mlruns/
+
+# Project Janitor
+.archive/
+.janitor/
