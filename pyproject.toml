@@ -26,7 +26,7 @@ url = "https://download.pytorch.org/whl/cu121"
 priority = "explicit"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.0"
+pytest = ">=8.3,<10.0"
 ipykernel = "^7.2.0"
 torch = { version = ">=2.2,<3.0", source = "pytorch-cu121" }
 yfinance = "^0.2.50"
