@@ -508,8 +508,16 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         else:
             save_dir = output_dir
 
-        # Exportando pesos PyTorch
+        # Exportando pesos PyTorch (Legado/Compatibilidade)
         torch.save(model.state_dict(), save_dir / "model.pt")
+
+        # Exportando pesos de forma segura usando Safetensors (imune a RCEs baseados em pickle)
+        try:
+            from safetensors.torch import save_file
+            save_file(model.state_dict(), save_dir / "model.safetensors")
+            print("Pesos do modelo exportados com sucesso em formato seguro (model.safetensors).")
+        except Exception as e:
+            print(f"Aviso: Nao foi possivel salvar os pesos em formato safetensors: {e}")
 
         # MLOps: Compilacao para formato estatico ONNX (Production Ready)
         dummy_input = torch.randn(1, cfg.window_size, X_train.shape[2]).to(device)

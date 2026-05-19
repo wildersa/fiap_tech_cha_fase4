@@ -87,6 +87,14 @@ poetry run uvicorn src.api:app --reload
 - `GET /model-card` & `/runs`: Resumos técnicos das arquiteturas e do MLflow para consumo do Frontend.
 - `GET /telemetry`: Retorna as métricas de latência, CPU e RAM que abastecem os gráficos da interface.
 
+## Segurança e Proteção contra RCE (Remote Code Execution)
+
+Devido às vulnerabilidades de segurança do carregamento padrão do PyTorch (`torch.load()`), que depende do módulo `pickle` do Python e permite execução arbitrária de código (mesmo com a flag `weights_only=True`), este projeto adota práticas defensivas rigorosas:
+
+1. **Inferência Segura com ONNX Runtime:** A API de produção (`src/api.py`) carrega e executa o modelo exclusivamente através do **ONNX Runtime** (`model.onnx`). O ONNX Runtime usa um formato estático que não executa código de serialização Python/Pickle, sendo completamente imune a RCEs na etapa de inferência.
+2. **Exportação de Pesos via Safetensors:** No pipeline de treinamento (`src/train.py`), além do arquivo `.pt` legado, exportamos os pesos do modelo no formato seguro **`model.safetensors`** usando a biblioteca `safetensors`. Esse formato armazena puramente os tensores binários e metadados, eliminando riscos de desserialização insegura.
+3. **Ausência de `torch.load()`:** O código-fonte do projeto não executa chamadas à função vulnerável `torch.load()`.
+
 ## Monitoramento e Telemetria
 
 ### 1. Telemetria In-Memory (Vercel-ready)

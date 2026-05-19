@@ -19,6 +19,7 @@ psutil = "^7.0.0"
 prometheus-fastapi-instrumentator = "^7.0.0"
 python-dotenv = "^1.2.2"
 onnxruntime = "^1.18.0"
+safetensors = "^0.7.0"
 
 [[tool.poetry.source]]
 name = "pytorch-cu121"
