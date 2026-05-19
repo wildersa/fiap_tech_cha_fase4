@@ -26,3 +26,13 @@ def test_tune_main_flow(mock_run_pipeline):
         main()
         
     assert mock_run_pipeline.call_count == 2
+
+
+def test_tune_integration(tmp_path, synthetic_df):
+    csv_path = tmp_path / "data.csv"
+    synthetic_df.to_csv(csv_path)
+
+    # Executa a busca com n_trials=1, max_epochs=1, e o CSV sintético temporário
+    with patch("sys.argv", ["tune.py", "--symbol", "TEST.SA", "--csv", str(csv_path), "--n-trials", "1", "--max-epochs", "1"]):
+        main()
+
