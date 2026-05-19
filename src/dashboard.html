@@ -3,167 +3,859 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>StockLSTM Dashboard</title>
+  <title>StockLSTM Premium Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f7f8fa;
-      --panel: #ffffff;
-      --text: #1f2933;
-      --muted: #667085;
-      --line: #d9dee7;
-      --accent: #1455d9;
-      --danger: #c73535;
+      --bg: #090a0f;
+      --panel-bg: #12141c;
+      --panel-border: #1e2230;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --accent: #8b5cf6;
+      --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, Helvetica, sans-serif; }
-    header {
-      border-bottom: 1px solid var(--line);
-      background: var(--panel);
-      padding: 18px 24px;
+    
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      font-size: 14px;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .app-container {
       display: flex;
-      justify-content: space-between;
-      gap: 16px;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 220px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+      position: fixed;
+      height: 100vh;
+      top: 0;
+      left: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .brand h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
       align-items: center;
+      gap: 8px;
     }
-    h1 { font-size: 22px; margin: 0; }
-    .shortcut-bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-    .shortcut-bar a {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: var(--text);
+
+    .brand h1::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: linear-gradient(180deg, var(--primary), var(--accent));
+      border-radius: 2px;
+    }
+
+    .brand .muted {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      margin: 14px 0 4px 6px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 7px 10px;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      background: #fbfcfe;
-    }
-    .shortcut-bar a:hover { border-color: var(--accent); color: var(--accent); }
-    main { max-width: 1220px; margin: 0 auto; padding: 24px; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .tabs button, .primary {
-      border: 1px solid var(--line);
-      background: var(--panel);
+      border-radius: 6px;
       color: var(--text);
-      border-radius: 6px;
-      padding: 9px 12px;
-      cursor: pointer;
-      font-weight: 600;
-    }
-    .tabs button.active, .primary { background: var(--accent); border-color: var(--accent); color: white; }
-    .grid { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 16px; align-items: start; }
-    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
-    .panel h2 { font-size: 16px; margin: 0 0 12px; }
-    .panel p { line-height: 1.45; }
-    textarea {
+      text-decoration: none;
+      background: transparent;
+      border: none;
       width: 100%;
-      min-height: 420px;
-      resize: vertical;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 12px;
-      font-family: Consolas, monospace;
-      font-size: 13px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
-    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfcfe; min-height: 82px; }
-    .card span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-    .card strong { font-size: 21px; overflow-wrap: anywhere; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .error { color: var(--danger); margin-top: 10px; white-space: pre-wrap; }
-    .hidden { display: none; }
-    code { background: #eef2f7; border: 1px solid #d9dee7; border-radius: 4px; padding: 1px 4px; }
-    pre { white-space: pre-wrap; background: #101828; color: #f9fafb; border-radius: 8px; padding: 14px; overflow: auto; }
-    canvas { width: 100%; max-height: 360px; }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: #ffffff;
+    }
+
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      color: #ffffff;
+      font-weight: 600;
+      border-left: 2px solid var(--primary);
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+
+    .nav-item .icon {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .sidebar-footer {
+      padding-top: 10px;
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      justify-content: center;
+    }
+
+    .sys-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      padding: 3px 8px;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .main-content {
+      flex-grow: 1;
+      margin-left: 220px;
+      padding: 20px 30px;
+      max-width: 1600px;
+      min-width: 0; /* prevent layout break */
+    }
+    
+    h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.2px;
+      margin-bottom: 10px;
+    }
+    
+    p {
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .home-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
+    
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.4);
+    }
+    
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--panel-border);
+      padding: 12px 16px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(59, 130, 246, 0.25);
+      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.15);
+    }
+    
+    .card span { 
+      font-size: 10px; 
+      color: var(--muted); 
+      margin-bottom: 4px; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+      font-weight: 700;
+    }
+    
+    .card strong { 
+      font-size: 16px; 
+      color: #ffffff; 
+      font-weight: 700; 
+      letter-spacing: -0.3px;
+    }
+    
+    textarea, input, select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      resize: vertical;
+      transition: all 0.2s ease;
+    }
+    
+    textarea { height: 160px; }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+      background: rgba(0, 0, 0, 0.4);
+    }
+    
+    button.primary {
+      background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(59, 130, 246, 0.15);
+      transition: all 0.2s ease;
+    }
+    
+    button.primary:hover { 
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    }
+    
+    button.primary:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .error {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      border-radius: 6px;
+    }
+    
+    pre {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    
+    .hidden { display: none !important; }
+    
+    table { 
+      width: 100%; 
+      border-collapse: separate; 
+      border-spacing: 0;
+      margin-top: 12px; 
+      font-size: 12px; 
+    }
+    
+    th { 
+      text-align: left; 
+      padding: 8px 12px; 
+      color: var(--muted); 
+      border-bottom: 2px solid var(--panel-border); 
+      font-weight: 600; 
+      text-transform: uppercase; 
+      font-size: 10px; 
+      letter-spacing: 0.5px; 
+    }
+    
+    td { 
+      padding: 8px 12px; 
+      border-bottom: 1px solid var(--panel-border); 
+      color: var(--text); 
+      transition: background-color 0.2s ease;
+    }
+    
+    tr:hover td { 
+      background: rgba(255, 255, 255, 0.01); 
+    }
+    
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .status-badge::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    
+    .status-failed {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+    }
+    
+    .update-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    
+    .update-btn:hover { 
+      background: rgba(255, 255, 255, 0.04); 
+      border-color: var(--primary);
+    }
+    
+    .tooltip-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--muted);
+      font-size: 9px;
+      margin-left: 4px;
+      cursor: help;
+      position: relative;
+      font-weight: 700;
+    }
+    
+    .tooltip-icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      width: max-content;
+      max-width: 250px;
+      background: #1e2230;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 20px -5px rgba(0,0,0,0.6);
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .tooltip-icon:hover::after {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(-4px);
+    }
+    
     @media (max-width: 900px) {
+      .app-container { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; }
+      .main-content { margin-left: 0; padding: 16px; }
       .grid, .home-grid { grid-template-columns: 1fr; }
       .cards { grid-template-columns: 1fr; }
-      header { align-items: flex-start; flex-direction: column; }
     }
+  
+    .form-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border);
+      transition: all 0.2s ease;
+    }
+    .form-group:hover {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .form-group label {
+      margin-bottom: 0 !important;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .form-group input, .form-group select {
+      width: 160px !important;
+      margin: 0 !important;
+      padding: 6px 10px !important;
+      font-size: 12px !important;
+      background: rgba(0,0,0,0.4);
+    }
+    
+    .pipeline-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 24px;
+      padding: 16px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+    }
+    .pipeline-node {
+      flex: 1;
+      text-align: center;
+      padding: 10px 4px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all 0.3s ease;
+    }
+    .pipeline-node.active {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+    }
+    .pipeline-node.done {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--success);
+      color: var(--success);
+    }
+    .pipeline-node.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .pipeline-arrow {
+      color: var(--panel-border);
+      font-size: 14px;
+      font-weight: bold;
+    }
+
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>StockLSTM Dashboard</h1>
-      <div class="muted">Modelo LSTM, inferência por fechamentos e telemetria operacional</div>
-    </div>
-    <nav class="shortcut-bar" aria-label="Atalhos da API">
-      <a href="/dashboard">Dashboard</a>
-      <a href="/docs">Swagger</a>
-      <a href="/openapi.json">OpenAPI</a>
-      <a href="/health">Health</a>
-      <a href="/model-card">Modelo</a>
-      <a href="/telemetry">Telemetria</a>
-      <a href="/metrics">Prometheus</a>
-    </nav>
-  </header>
-  <main>
-    <div class="muted" style="margin-bottom: 12px;">Artefatos: __MODEL_DIR__</div>
-    <div class="tabs">
-      <button id="tab-home" class="active" onclick="showTab('home')">Home</button>
-      <button id="tab-inference" onclick="showTab('inference')">Inferência</button>
-      <button id="tab-telemetry" onclick="showTab('telemetry')">Telemetria</button>
-    </div>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>StockLSTM</h1>
+        <div class="muted">Advanced Intelligence</div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-section">Navegação</div>
+        <button id="tab-home" class="nav-item active" onclick="showTab('home')">
+          <span class="icon">🏠</span> Home / Card
+        </button>
+        <button id="tab-inference" class="nav-item" onclick="showTab('inference')">
+          <span class="icon">🔮</span> Inferência
+        </button>
+        <button id="tab-telemetry" class="nav-item" onclick="showTab('telemetry')">
+          <span class="icon">📊</span> Telemetria
+        </button>
+        <button id="tab-train" class="nav-item" onclick="showTab('train')">
+          <span class="icon">⚙️</span> Treino & MLflow
+        </button>
+        
+        <div class="nav-section">Atalhos API</div>
+        <a href="/docs" target="_blank" class="nav-item">
+          <span class="icon">📖</span> Swagger Docs
+        </a>
+        <a href="/openapi.json" target="_blank" class="nav-item">
+          <span class="icon">📄</span> OpenAPI Spec
+        </a>
+        <a href="/health" target="_blank" class="nav-item">
+          <span class="icon">💚</span> Health API
+        </a>
+        <a href="/metrics" target="_blank" class="nav-item">
+          <span class="icon">📈</span> Prometheus
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="sys-badge">
+          <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--success); box-shadow: 0 0 5px var(--success);"></span>
+          ONNX Prod
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="muted" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success);"></span>
+        Modelo ativo | Ativo: <code>__MODEL_DIR__</code>
+      </div>
 
     <section id="home" class="home-grid">
       <div class="panel">
-        <h2>Modelo</h2>
-        <p>Esta API usa uma LSTM univariada treinada apenas com preços de fechamento. O treino transforma os fechamentos em <strong>log-retornos</strong>, porque variações tendem a ser mais estáveis do que o preço bruto.</p>
-        <p>No momento da inferência, o usuário envia uma lista de fechamentos. A API calcula os log-retornos, aplica o scaler salvo, executa a LSTM e reconstrói o preço previsto com <code>last_close * exp(predicted_log_return)</code>.</p>
+        <h2>Arquitetura do Modelo</h2>
+        <p>Esta API utiliza uma rede neural LSTM avançada, projetada para extrair padrões temporais de séries financeiras. O pipeline multivariado (V8) processa preços e injeta indicadores estacionários para maximizar a assertividade.</p>
+        <p>No momento da inferência, o usuário envia os fechamentos recentes. A API normaliza os dados usando a abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e decodifica a previsão para o próximo preço de fechamento.</p>
         <div class="cards">
-          <div class="card"><span>Entrada</span><strong>closes</strong></div>
-          <div class="card"><span>Alvo</span><strong>log-retorno</strong></div>
-          <div class="card"><span>Saída</span><strong>preço</strong></div>
+          <div class="card"><span>Entrada</span><strong>Série OHLCV</strong></div>
+          <div class="card"><span>Alvo</span><strong>Target Ratio</strong></div>
+          <div class="card"><span>Saída</span><strong>Preço Previsto</strong></div>
         </div>
       </div>
       <div class="panel">
-        <h2>Resumo do artefato</h2>
-        <pre id="modelCardData">Carregando...</pre>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h2 style="margin: 0;">Model Card (Produção)</h2>
+          <span class="status-badge" id="mc-status" style="padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">Verificando...</span>
+        </div>
+        <p class="muted">Detalhes técnicos do modelo carregado em memória e ativo para inferência da API.</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; margin-top: 12px;">
+          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+            <span style="font-size: 9px; text-transform: uppercase;">Ativo / Ticker</span>
+            <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+          </div>
+          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+            <span style="font-size: 9px; text-transform: uppercase;">Arquitetura Base</span>
+            <strong id="mc-type" style="font-size: 13px;">-</strong>
+          </div>
+          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+            <span style="font-size: 9px; text-transform: uppercase;">Window Size</span>
+            <strong id="mc-window" style="font-size: 13px;">-</strong>
+          </div>
+          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+            <span style="font-size: 9px; text-transform: uppercase;">Target Mode</span>
+            <strong id="mc-target" style="font-size: 13px;">-</strong>
+          </div>
+        </div>
+
+        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Performance no Teste (Offline)</h3>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
+          <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--primary); font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--primary); font-size: 13px;">-</strong></div>
+        </div>
+
+        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Contrato da API</h3>
+        <ul style="color: var(--text); font-size: 11px; line-height: 1.4; background: rgba(0,0,0,0.15); padding: 10px 12px 10px 24px; border-radius: 6px; border: 1px solid var(--panel-border); margin: 0; margin-bottom: 16px;">
+          <li style="margin-bottom: 4px;"><strong>Input (Payload):</strong> <span id="mc-input" class="muted">-</span></li>
+          <li><strong>Output (Response):</strong> <span id="mc-output" class="muted">-</span></li>
+        </ul>
+        
+        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Gráfico de Avaliação (Treino)</h3>
+        <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; margin-bottom: 16px; text-align: center;">
+          <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
+        </div>
       </div>
     </section>
 
     <section id="inference" class="grid hidden">
       <div class="panel">
-        <h2>Payload JSON</h2>
-        <p class="muted">Envie fechamentos em ordem cronológica. O mínimo é window_size + 1; com a configuração padrão, 61 valores.</p>
-        <textarea id="payload">__SAMPLE_PAYLOAD__</textarea>
-        <div style="margin-top: 12px;">
-          <button class="primary" onclick="runPrediction()">Predizer próximo fechamento</button>
+        <h2>Payload de Inferência</h2>
+        <p class="muted">Insira a série cronológica de fechamentos (JSON).</p>
+        <textarea id="payload" spellcheck="false" style="height: 120px; font-size: 11px;">__SAMPLE_PAYLOAD__</textarea>
+        <div style="margin-top: 10px;">
+          <button class="primary" style="width: 100%;" onclick="runPrediction()">Executar Inferência</button>
         </div>
-        <div id="error" class="error"></div>
+        <div id="error" class="error hidden"></div>
       </div>
       <div class="panel">
-        <h2>Resultado</h2>
-        <div class="cards">
-          <div class="card"><span>Último fechamento</span><strong id="lastClose">-</strong></div>
-          <div class="card"><span>Previsão LSTM</span><strong id="predictedClose">-</strong></div>
-          <div class="card"><span>Direção prevista</span><strong id="direction">-</strong></div>
-          <div class="card"><span>Retorno previsto</span><strong id="returnPct">-</strong></div>
-          <div class="card"><span>Diferença</span><strong id="diffAbs">-</strong></div>
-          <div class="card"><span>Latência medida</span><strong id="latency">-</strong></div>
+        <h2>Resultados da Projeção</h2>
+        <div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+          <div class="card" style="padding: 6px 10px;"><span>Último Fechamento</span><strong id="lastClose" style="color: #cbd5e1; font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 6px 10px;"><span>Previsão LSTM</span><strong id="predictedClose" style="color: var(--accent-hover); font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 6px 10px;"><span>Direção Prevista</span><strong id="direction" style="font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 6px 10px;"><span>Retorno Prox. Dia</span><strong id="returnPct" style="font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 6px 10px;"><span>Variação Absoluta</span><strong id="diffAbs" style="font-size: 13px;">-</strong></div>
+          <div class="card" style="padding: 6px 10px;"><span>Tempo de Resposta</span><strong id="latency" style="color: var(--success); font-size: 13px;">-</strong></div>
         </div>
-        <canvas id="priceChart"></canvas>
+        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--panel-border);">
+          <div style="position: relative; height: 150px; width: 100%;">
+            <canvas id="priceChart"></canvas>
+          </div>
+        </div>
       </div>
     </section>
 
     <section id="telemetry" class="panel hidden">
-      <h2>Telemetria operacional</h2>
-      <p class="muted">Estas métricas medem saúde da API em produção: chamadas, latência, erros, CPU e memória. O endpoint Prometheus técnico fica em /metrics.</p>
-      <pre id="telemetryData">Carregando...</pre>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0;">Telemetria do Servidor</h2>
+        <button class="update-btn" onclick="loadTelemetry()">Atualizar Dados</button>
+      </div>
+      <p class="muted" style="margin-bottom: 8px;">Métricas em tempo real mantidas em memória para fins de demonstração (Vercel). Acompanhe latência da API e utilização de recursos.</p>
+      <p class="muted" style="font-size: 11px; margin-bottom: 24px; color: var(--muted); font-style: italic;">Nota: O valor de CPU representa uma amostra aproximada do momento da requisição e pode variar conforme o ambiente serverless. Histórico é reiniciado a cada cold start.</p>
+      
+      <div class="cards" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="card"><span>Total Requisições</span><strong id="tel-reqs">-</strong></div>
+        <div class="card"><span>Taxa de Erro</span><strong id="tel-errs" style="color: var(--danger);">-</strong></div>
+        <div class="card"><span>Uptime</span><strong id="tel-uptime">-</strong></div>
+        <div class="card"><span>Latência Média</span><strong id="tel-lat">-</strong></div>
+      </div>
+
+      <div class="grid">
+        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
+          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Uso de CPU & Memória (MB)</h3>
+          <div style="position: relative; height: 180px; width: 100%;">
+            <canvas id="resourceChart"></canvas>
+          </div>
+        </div>
+        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
+          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Latência da API (ms)</h3>
+          <div style="position: relative; height: 180px; width: 100%;">
+            <canvas id="latencyChart"></canvas>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <section id="train" class="grid hidden">
+      <div class="panel">
+        <h2>Treinamento Remoto</h2>
+        <p class="muted">Inicie um pipeline de treinamento completo utilizando a arquitetura atual. O modelo será re-treinado e os artefatos serão atualizados automaticamente caso obtenham melhor performance.</p>
+        
+        <div id="lineage-badge" class="hidden" style="margin-bottom: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.5); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #93c5fd;">
+          <span>🔗 Derivando do Run: <strong id="lineage-run-id"></strong></span>
+          <button onclick="clearLineage()" style="background: none; border: none; color: #93c5fd; cursor: pointer; padding: 0; font-weight: bold;" title="Remover relacionamento">✕</button>
+        </div>
+        <input type="hidden" id="train-parent-run-id" value="">
+
+        <div id="train-pipeline" class="pipeline-flow hidden">
+          <div class="pipeline-node" id="step-1">1. Coleta dos Dados</div>
+          <div class="pipeline-arrow">➔</div>
+          <div class="pipeline-node" id="step-2">2. Engenharia de Features</div>
+          <div class="pipeline-arrow">➔</div>
+          <div class="pipeline-node" id="step-3">3. Treinamento LSTM</div>
+          <div class="pipeline-arrow">➔</div>
+          <div class="pipeline-node" id="step-4">4. Avaliação + Registro MLflow</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+          <div class="form-group">
+            <label>Ticker / Symbol <span class="tooltip-icon" data-tooltip="Símbolo da ação no Yahoo Finance. Padrão: PETR4.SA">?</span></label>
+            <input id="train-symbol" type="text" value="PETR4.SA">
+          </div>
+          <div class="form-group">
+            <label>Start Date <span class="tooltip-icon" data-tooltip="Data de início do histórico.">?</span></label>
+            <input id="train-start" type="date" value="2018-01-01">
+          </div>
+          
+          <div class="form-group">
+            <label>Target Mode <span class="tooltip-icon" data-tooltip="Formato da variável alvo.">?</span></label>
+            <select id="train-target">
+              <option value="log_returns">log_returns (Recomendado)</option>
+              <option value="raw_close">raw_close</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Feature Mode <span class="tooltip-icon" data-tooltip="Variáveis preditivas da rede. 'single' usa apenas o target.">?</span></label>
+            <select id="train-feature">
+              <option value="single">single (Recomendado)</option>
+              <option value="ohlcv">ohlcv</option>
+              <option value="ohlcv_returns">ohlcv_returns</option>
+              <option value="technical_features">technical_features</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Device <span class="tooltip-icon" data-tooltip="Força a CPU ou GPU. CUDA reduz o tempo drasticamente mas exige hardware NVIDIA compatível e Drivers instalados.">?</span></label>
+            <select id="train-device">
+              <option value="auto">Auto-detect (CUDA if available)</option>
+              <option value="cpu">CPU Only</option>
+              <option value="cuda">NVIDIA CUDA</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Hidden Size <span class="tooltip-icon" data-tooltip="Capacidade de memória da rede. Valores comuns: 32, 64, 128.">?</span></label>
+            <input id="train-hidden" type="number" value="64">
+          </div>
+          <div class="form-group">
+            <label>Num Layers <span class="tooltip-icon" data-tooltip="Número de camadas LSTM. 1 ou 2 é suficiente na maioria dos casos financeiros.">?</span></label>
+            <input id="train-layers" type="number" value="1">
+          </div>
+
+          <div class="form-group">
+            <label>Window Size <span class="tooltip-icon" data-tooltip="Lookback. Quantos dias no passado a rede lê para prever o próximo. Janelas longas captam tendências maiores mas podem incluir ruídos desnecessários.">?</span></label>
+            <input id="train-window" type="number" value="60">
+          </div>
+          <div class="form-group">
+            <label>Batch Size <span class="tooltip-icon" data-tooltip="Quantos lotes a rede lê antes de atualizar os pesos. Batches menores = pulos frequentes mas erráticos. Batches maiores = média de erros mais suave e rápida.">?</span></label>
+            <input id="train-batch" type="number" value="32">
+          </div>
+
+          <div class="form-group">
+            <label>Max Epochs <span class="tooltip-icon" data-tooltip="Máximo de ciclos completos de treinamento. Mais ciclos forçam aprendizado, mas correm risco de Overfitting (decorar os dados).">?</span></label>
+            <input id="train-epochs" type="number" value="100">
+          </div>
+          <div class="form-group">
+            <label>Patience <span class="tooltip-icon" data-tooltip="A rede pára o treino automaticamente e reverte se não melhorar a métrica de teste por X épocas seguidas, poupando tempo e overfitting.">?</span></label>
+            <input id="train-patience" type="number" value="10">
+          </div>
+
+          <div class="form-group">
+            <label>Learning Rate <span class="tooltip-icon" data-tooltip="Taxa de aprendizado. Valores altos convergem muito rápido mas costumam 'pular' o melhor mínimo do erro. Muito baixos custam muito tempo.">?</span></label>
+            <input id="train-lr" type="number" step="0.0001" value="0.001">
+          </div>
+          <div class="form-group">
+            <label>Weight Decay <span class="tooltip-icon" data-tooltip="Penalidade L2. Força os pesos a ficarem pequenos, prevenindo overfitting.">?</span></label>
+            <input id="train-wd" type="number" step="0.0001" value="0.0001">
+          </div>
+
+          <div class="form-group">
+            <label>Dropout <span class="tooltip-icon" data-tooltip="Percentual de neurônios 'desligados' intencionalmente durante o treino. Ajuda a forçar a rede a generalizar e não decorar os dados. (0.2 = 20%)">?</span></label>
+            <input id="train-dropout" type="number" step="0.01" value="0.20">
+          </div>
+          <div class="form-group">
+            <label>Grad Clip <span class="tooltip-icon" data-tooltip="Evita que os gradientes explodam e desestabilizem os pesos da rede.">?</span></label>
+            <input id="train-clip" type="number" step="0.1" value="1.0">
+          </div>
+        </div>
+        <button class="primary" style="width: 100%" onclick="runTraining()" id="train-btn">Inicializar Pipeline de Treinamento</button>
+        
+
+
+        <div id="train-error" class="error hidden"></div>
+        <pre id="train-success" class="hidden" style="margin-top: 16px; border-color: rgba(16, 185, 129, 0.3); color: #34d399;"></pre>
+      </div>
+      <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">Histórico de Treinamentos (MLflow)</h2>
+          <button class="update-btn" onclick="loadRuns()">Atualizar Lista</button>
+        </div>
+        <div style="overflow-x: auto; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--panel-border);">
+          <table>
+            <thead>
+              <tr>
+                <th>Run ID</th>
+                <th>Status</th>
+                <th>Target Mode</th>
+                <th>MAPE Teste</th>
+                <th>RMSE Teste</th>
+                <th>MAE Teste</th>
+                <th>Acurácia Dir.</th>
+              </tr>
+            </thead>
+            <tbody id="runs-table-body">
+              <tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no MLflow...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
   </main>
+</div>
+
+  <div id="lineage-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; width: 600px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden;">
+      <div style="padding: 16px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);">
+        <h3 style="margin: 0; color: var(--text);">Comparação de Linhagem</h3>
+        <button onclick="document.getElementById('lineage-modal').classList.add('hidden'); document.getElementById('lineage-modal').style.display = 'none';" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 8px;">✕</button>
+      </div>
+      <div style="padding: 20px;" id="lineage-modal-content">
+        <!-- Content populated by JS -->
+      </div>
+    </div>
+  </div>
+
   <script>
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
     let chart = null;
+    let resourceChart = null;
+    let latencyChart = null;
+    
+    const ENABLE_TRAINING_API = __ENABLE_TRAINING_API__;
+    if (!ENABLE_TRAINING_API) {
+      document.getElementById('tab-train').style.display = 'none';
+    }
 
     function showTab(name) {
-      for (const tab of ['home', 'inference', 'telemetry']) {
+      for (const tab of ['home', 'inference', 'telemetry', 'train']) {
         document.getElementById(tab).classList.toggle('hidden', name !== tab);
         document.getElementById('tab-' + tab).classList.toggle('active', name === tab);
       }
       if (name === 'home') loadModelCard();
       if (name === 'telemetry') loadTelemetry();
+      if (name === 'train') loadRuns();
     }
 
     function money(value) {
@@ -171,77 +863,642 @@
     }
 
     async function runPrediction() {
-      const error = document.getElementById('error');
-      error.textContent = '';
+      const errEl = document.getElementById('error');
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+      
       let payload;
       try {
         payload = JSON.parse(document.getElementById('payload').value);
       } catch (err) {
-        error.textContent = 'JSON inválido: ' + err.message;
+        errEl.textContent = 'JSON inválido: ' + err.message;
+        errEl.classList.remove('hidden');
         return;
       }
 
       const start = performance.now();
-      const response = await fetch('/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const elapsed = performance.now() - start;
-      const data = await response.json();
-      if (!response.ok) {
-        error.textContent = data.detail || JSON.stringify(data, null, 2);
-        return;
-      }
+      try {
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const elapsed = performance.now() - start;
+        const data = await response.json();
+        
+        if (!response.ok) {
+          errEl.textContent = data.detail || JSON.stringify(data, null, 2);
+          errEl.classList.remove('hidden');
+          return;
+        }
 
-      document.getElementById('lastClose').textContent = money(data.last_close);
-      document.getElementById('predictedClose').textContent = money(data.predicted_close);
-      document.getElementById('direction').textContent = data.predicted_direction;
-      document.getElementById('returnPct').textContent = Number(data.predicted_return_pct).toFixed(3) + '%';
-      document.getElementById('diffAbs').textContent = money(data.predicted_change_abs);
-      document.getElementById('latency').textContent = elapsed.toFixed(1) + ' ms';
-      renderChart(payload.closes || [], data.predicted_close);
-      loadTelemetry();
+        document.getElementById('lastClose').textContent = money(data.last_close);
+        document.getElementById('predictedClose').textContent = money(data.predicted_close);
+        
+        const dirEl = document.getElementById('direction');
+        dirEl.textContent = data.predicted_direction.toUpperCase();
+        dirEl.style.color = data.predicted_direction === 'alta' ? 'var(--success)' : 'var(--danger)';
+        
+        const retPct = Number(data.predicted_return_pct);
+        const retEl = document.getElementById('returnPct');
+        retEl.textContent = (retPct > 0 ? '+' : '') + retPct.toFixed(3) + '%';
+        retEl.style.color = retPct > 0 ? 'var(--success)' : 'var(--danger)';
+        
+        document.getElementById('diffAbs').textContent = (data.predicted_change_abs > 0 ? '+' : '') + money(data.predicted_change_abs);
+        document.getElementById('latency').textContent = elapsed.toFixed(1) + ' ms';
+        
+        renderChart(payload.closes || [], data.predicted_close);
+        loadTelemetry();
+      } catch (e) {
+        errEl.textContent = 'Erro de rede: ' + e.message;
+        errEl.classList.remove('hidden');
+      }
     }
 
     function renderChart(closes, predicted) {
       const recent = closes.slice(-30).map(Number);
-      const labels = recent.map((_, i) => String(i - recent.length + 1)).concat(['próxima']);
+      const labels = recent.map((_, i) => String(i - recent.length + 1)).concat(['Previsão']);
       const closeSeries = recent.concat(null);
       const predictedSeries = new Array(recent.length).fill(null).concat(Number(predicted));
       const ctx = document.getElementById('priceChart');
+      
       if (chart) chart.destroy();
+      
       chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
           datasets: [
-            { label: 'Fechamentos recentes', data: closeSeries, borderColor: '#1455d9', backgroundColor: '#1455d9', tension: 0.2 },
-            { label: 'Previsão', data: predictedSeries, borderColor: '#c73535', backgroundColor: '#c73535', pointRadius: 5 }
+            { 
+              label: 'Fechamentos Históricos', 
+              data: closeSeries, 
+              borderColor: '#3b82f6', 
+              backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+              tension: 0.3,
+              borderWidth: 2,
+              fill: true
+            },
+            { 
+              label: 'Projeção LSTM', 
+              data: predictedSeries, 
+              borderColor: '#a78bfa', 
+              backgroundColor: '#a78bfa', 
+              pointBackgroundColor: '#a78bfa',
+              pointBorderColor: '#fff',
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              borderWidth: 2,
+              borderDash: [5, 5]
+            }
           ]
         },
         options: {
           responsive: true,
-          plugins: { legend: { position: 'bottom' } },
-          scales: { x: { ticks: { maxRotation: 0, autoSkip: true } } }
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { 
+            legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+            tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { size: 13 }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 8, displayColors: false }
+          },
+          scales: { 
+            x: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false } },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, ticks: { callback: (val) => 'R$ ' + val } }
+          }
         }
       });
     }
 
     async function loadTelemetry() {
-      const response = await fetch('/telemetry');
-      const data = await response.json();
-      document.getElementById('telemetryData').textContent = JSON.stringify(data, null, 2);
+      try {
+        const response = await fetch('/telemetry');
+        const data = await response.json();
+        
+        document.getElementById('tel-reqs').textContent = data.api.total_requests;
+        const errRate = data.api.total_requests > 0 ? (data.api.total_errors / data.api.total_requests * 100) : 0;
+        document.getElementById('tel-errs').textContent = errRate.toFixed(1) + '%';
+        document.getElementById('tel-uptime').textContent = data.uptime_seconds + 's';
+        document.getElementById('tel-lat').textContent = data.api.average_response_time_ms + ' ms';
+
+        const history = data.history || [];
+        const labels = history.map(h => h.timestamp);
+        const cpuData = history.map(h => h.cpu_percent);
+        const memData = history.map(h => h.memory_mb);
+        const latData = history.map(h => h.latency_ms);
+
+        if (resourceChart) resourceChart.destroy();
+        resourceChart = new Chart(document.getElementById('resourceChart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'CPU (%)', data: cpuData, borderColor: '#3b82f6', tension: 0.2, pointRadius: 1, borderWidth: 2 },
+              { label: 'RAM (MB)', data: memData, borderColor: '#10b981', tension: 0.2, pointRadius: 1, borderWidth: 2 }
+            ]
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } }
+          }
+        });
+
+        if (latencyChart) latencyChart.destroy();
+        latencyChart = new Chart(document.getElementById('latencyChart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Latência (ms)', data: latData, borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.1)', fill: true, tension: 0.2, pointRadius: 1, borderWidth: 2 }
+            ]
+          },
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } }
+          }
+        });
+      } catch (e) {
+        console.error('Falha ao carregar telemetria:', e);
+      }
     }
 
     async function loadModelCard() {
-      const response = await fetch('/model-card');
-      const data = await response.json();
-      document.getElementById('modelCardData').textContent = JSON.stringify(data, null, 2);
+      try {
+        const res = await fetch('/model-card');
+        const data = await res.json();
+        
+        const isLoaded = data.artifacts_available && data.artifacts_available.model && data.artifacts_available.preprocessor;
+        const statusBadge = document.getElementById('mc-status');
+        if (isLoaded) {
+          statusBadge.textContent = 'ONLINE (Ativo)';
+          statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+          statusBadge.style.color = '#10b981';
+          statusBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+        } else {
+          statusBadge.textContent = 'OFFLINE (Faltam Artefatos)';
+          statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          statusBadge.style.color = '#ef4444';
+          statusBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        }
+
+        document.getElementById('mc-symbol').textContent = data.symbol || '-';
+        document.getElementById('mc-type').textContent = data.model_type || '-';
+        document.getElementById('mc-window').textContent = data.window_size ? data.window_size + ' dias' : '-';
+        document.getElementById('mc-target').textContent = data.target || '-';
+
+        if (data.metrics && data.metrics.lstm_test) {
+          document.getElementById('mc-mape').textContent = data.metrics.lstm_test.mape_pct.toFixed(2) + '%';
+          document.getElementById('mc-mae').textContent = data.metrics.lstm_test.mae.toFixed(2);
+          document.getElementById('mc-rmse').textContent = data.metrics.lstm_test.rmse.toFixed(2);
+          document.getElementById('mc-dir').textContent = (data.metrics.directional_accuracy_test_lstm_pct || 0).toFixed(1) + '%';
+        } else {
+          ['mc-mape', 'mc-mae', 'mc-rmse', 'mc-dir'].forEach(id => document.getElementById(id).textContent = '-');
+        }
+
+        document.getElementById('mc-input').textContent = data.input;
+        document.getElementById('mc-output').textContent = data.output;
+        
+        // Força atualização da imagem burlando o cache
+        const imgEl = document.getElementById('mc-image');
+        if(imgEl) {
+          imgEl.src = "/model-image?t=" + new Date().getTime();
+          imgEl.style.display = 'block';
+        }
+
+      } catch (e) {
+        console.error('Falha ao carregar Model Card:', e);
+      }
     }
 
+    function clearLineage() {
+      const el = document.getElementById('train-parent-run-id');
+      if(el) el.value = "";
+      const badge = document.getElementById('lineage-badge');
+      if(badge) badge.classList.add('hidden');
+    }
+
+    function populateTrainingForm(run_id, p) {
+      const map = {
+        symbol: 'train-symbol',
+        start_date: 'train-start',
+        target_mode: 'train-target',
+        feature_mode: 'train-feature',
+        device: 'train-device',
+        hidden_size: 'train-hidden',
+        num_layers: 'train-layers',
+        window_size: 'train-window',
+        batch_size: 'train-batch',
+        max_epochs: 'train-epochs',
+        patience: 'train-patience',
+        learning_rate: 'train-lr',
+        weight_decay: 'train-wd',
+        dropout: 'train-dropout',
+        grad_clip: 'train-clip'
+      };
+      for (const [key, id] of Object.entries(map)) {
+        if (p[key] !== undefined && document.getElementById(id)) {
+          document.getElementById(id).value = p[key];
+        }
+      }
+      const parentInput = document.getElementById('train-parent-run-id');
+      if (parentInput) parentInput.value = run_id;
+      const lineageId = document.getElementById('lineage-run-id');
+      if (lineageId) lineageId.textContent = run_id.substring(0, 8);
+      const lineageBadge = document.getElementById('lineage-badge');
+      if (lineageBadge) lineageBadge.classList.remove('hidden');
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    async function loadRuns() {
+      const tbody = document.getElementById('runs-table-body');
+      tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no MLflow...</td></tr>';
+      try {
+        const response = await fetch('/runs');
+        const data = await response.json();
+        window.allRunsData = data.runs;
+        tbody.innerHTML = '';
+        if (!data.runs || data.runs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Nenhum treinamento encontrado neste experimento.</td></tr>';
+          return;
+        }
+        for (const r of data.runs) {
+          const tr = document.createElement('tr');
+          const p = r.params || {};
+          const m = r.metrics || {};
+          
+          const mape = m.test_lstm_mape_pct ? m.test_lstm_mape_pct.toFixed(2) + '%' : '-';
+          const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';
+          const mae = m.test_lstm_mae ? m.test_lstm_mae.toFixed(4) : '-';
+          const dirAcc = m.directional_accuracy_pct ? m.directional_accuracy_pct.toFixed(1) + '%' : '-';
+          const tMode = p.target_mode || '-';
+          
+          tr.style.cursor = 'pointer';
+          tr.title = "Clique para ver os parâmetros";
+          
+          const isFinished = r.status === 'FINISHED';
+          const statusHtml = `<span class="status-badge ${isFinished ? 'status-finished' : 'status-failed'}">
+            ${isFinished ? '✓' : '✗'} ${r.status}
+          </span>`;
+          
+          let runIdHtml = `<code>${r.run_id.substring(0, 8)}</code>`;
+          if (r.tags && r.tags.derived_from) {
+             runIdHtml += `<br><span style="font-size: 9px; color: var(--muted); border: 1px solid var(--panel-border); border-radius: 4px; padding: 1px 4px; display: inline-block; margin-top: 4px; background: rgba(0,0,0,0.2);" title="Derivado do run ${r.tags.derived_from}">↳ de ${r.tags.derived_from.substring(0,8)}</span>`;
+          }
+
+          tr.innerHTML = `
+            <td>${runIdHtml}</td>
+            <td>${statusHtml}</td>
+            <td>${tMode}</td>
+            <td style="font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}">${mape}</td>
+            <td>${rmse}</td>
+            <td>${mae}</td>
+            <td style="color: ${m.directional_accuracy_pct > 50 ? 'var(--success)' : 'inherit'}">${dirAcc}</td>
+          `;
+          
+          tr.onclick = () => {
+            const el = document.getElementById('details-' + r.run_id);
+            if(el) el.classList.toggle('hidden');
+          };
+          
+          tbody.appendChild(tr);
+          
+          const detailsTr = document.createElement('tr');
+          detailsTr.id = 'details-' + r.run_id;
+          detailsTr.className = 'hidden';
+          
+          let paramsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
+          for (const [k, v] of Object.entries(p)) {
+            paramsHtml += `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 4px; padding: 4px 8px; font-size: 12px;"><span style="color: var(--muted); margin-right: 4px;">${k}:</span><span style="color: var(--text); font-weight: 500;">${v}</span></div>`;
+          }
+          paramsHtml += '</div>';
+          
+          let compareBtn = '';
+          if (r.tags && r.tags.derived_from) {
+            compareBtn = `<button class="secondary" style="padding: 4px 10px; font-size: 11px; margin-right: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid var(--primary); color: #93c5fd;" onclick='compareLineage("${r.run_id}", "${r.tags.derived_from}")'>📊 Comparar com Pai</button>`;
+          }
+
+          detailsTr.innerHTML = `
+            <td colspan="6" style="padding: 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--accent-hover);">Hiperparâmetros do Run:</div>
+                <div>
+                  ${compareBtn}
+                  <button class="primary" style="padding: 4px 10px; font-size: 11px;" onclick='populateTrainingForm("${r.run_id}", ${JSON.stringify(p)}); this.textContent="Preenchido!"; setTimeout(()=>this.textContent="Preencher Formulário", 2000)'>Preencher Formulário</button>
+                </div>
+              </div>
+              ${paramsHtml}
+            </td>
+          `;
+          tbody.appendChild(detailsTr);
+        }
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="error" style="margin: 0; border: none; text-align: center; padding: 32px;">Erro ao carregar MLflow: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function runTraining() {
+      const btn = document.getElementById('train-btn');
+      const errEl = document.getElementById('train-error');
+      const succEl = document.getElementById('train-success');
+      
+      errEl.classList.add('hidden');
+      succEl.classList.add('hidden');
+      
+      btn.innerHTML = '<span style="display: inline-block; animation: pulse 1.5s infinite;">Executando Pipeline... (Isso pode levar minutos)</span>';
+      btn.disabled = true;
+      
+      const pipeline = document.getElementById('train-pipeline');
+      pipeline.classList.remove('hidden');
+      for(let i=1; i<=4; i++) {
+        document.getElementById('step-'+i).className = 'pipeline-node';
+      }
+      
+      let currentStep = 1;
+      // Fake progress indicator to give visual feedback on long poll
+      const progressInterval = setInterval(() => {
+        if(currentStep > 1 && currentStep <= 3) document.getElementById('step-'+(currentStep-1)).className = 'pipeline-node done';
+        if(currentStep <= 3) {
+          document.getElementById('step-'+currentStep).className = 'pipeline-node active';
+          currentStep++;
+        }
+      }, 4000);
+      
+      const payload = {
+        symbol: document.getElementById('train-symbol').value,
+        start_date: document.getElementById('train-start').value,
+        target_mode: document.getElementById('train-target').value,
+        feature_mode: document.getElementById('train-feature').value,
+        device: document.getElementById('train-device').value,
+        hidden_size: parseInt(document.getElementById('train-hidden').value, 10),
+        num_layers: parseInt(document.getElementById('train-layers').value, 10),
+        window_size: parseInt(document.getElementById('train-window').value, 10),
+        batch_size: parseInt(document.getElementById('train-batch').value, 10),
+        max_epochs: parseInt(document.getElementById('train-epochs').value, 10),
+        patience: parseInt(document.getElementById('train-patience').value, 10),
+        learning_rate: parseFloat(document.getElementById('train-lr').value),
+        weight_decay: parseFloat(document.getElementById('train-wd').value),
+        dropout: parseFloat(document.getElementById('train-dropout').value),
+        grad_clip: parseFloat(document.getElementById('train-clip').value)
+      };
+      
+      const parentId = document.getElementById('train-parent-run-id');
+      if (parentId && parentId.value) {
+        payload.parent_run_id = parentId.value;
+      }
+      
+      try {
+        const response = await fetch('/train', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        
+        if (!response.ok) {
+          errEl.textContent = data.detail || JSON.stringify(data, null, 2);
+          errEl.classList.remove('hidden');
+        } else {
+          succEl.textContent = data.message + '\n\nMétricas de Validação e Teste:\n' + JSON.stringify(data.metrics.lstm_test, null, 2);
+          succEl.classList.remove('hidden');
+          loadRuns();
+          loadModelCard();
+        }
+      } catch (e) {
+        errEl.textContent = 'Erro de rede: O servidor pode ter demorado demais para responder ou caiu. ' + e.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        clearInterval(progressInterval);
+        for(let i=1; i<=4; i++) {
+          const st = document.getElementById('step-'+i);
+          if(!errEl.classList.contains('hidden')) st.className = 'pipeline-node error';
+          else st.className = 'pipeline-node done';
+        }
+        btn.textContent = 'Inicializar Pipeline de Treinamento';
+        btn.disabled = false;
+        if(errEl.classList.contains('hidden')) {
+          setTimeout(() => pipeline.classList.add('hidden'), 8000);
+        }
+      }
+    }
+
+    function compareLineage(childId, parentId) {
+      const child = window.allRunsData.find(x => x.run_id === childId);
+      const parent = window.allRunsData.find(x => x.run_id === parentId);
+      
+      if (!child || !parent) {
+        alert('O run pai não está nos 100 resultados mais recentes para comparação.');
+        return;
+      }
+      
+      let paramDiffs = '';
+      for (const [k, v] of Object.entries(child.params)) {
+        if (parent.params[k] !== v) {
+          paramDiffs += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+            <span style="color: var(--muted);">${k}</span>
+            <span><del style="color: var(--danger); margin-right: 8px;">${parent.params[k] || 'N/A'}</del> <strong style="color: var(--success);">➔ ${v}</strong></span>
+          </div>`;
+        }
+      }
+      if (!paramDiffs) paramDiffs = '<span class="muted">Nenhuma alteração de hiperparâmetro.</span>';
+
+      const mChild = child.metrics || {};
+      const mParent = parent.metrics || {};
+      
+      function metricDiff(name, key, isLowerBetter) {
+        const vc = mChild[key];
+        const vp = mParent[key];
+        if (vc === undefined || vp === undefined) return '';
+        const diff = vc - vp;
+        if (Math.abs(diff) < 0.0001) return '';
+        let color = 'inherit';
+        let arrow = '';
+        if (diff < 0) { color = isLowerBetter ? 'var(--success)' : 'var(--danger)'; arrow = '↓'; }
+        if (diff > 0) { color = isLowerBetter ? 'var(--danger)' : 'var(--success)'; arrow = '↑'; }
+        
+        return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+          <span style="color: var(--muted);">${name}</span>
+          <span>${vp.toFixed(4)} ➔ <strong style="color: ${color};">${vc.toFixed(4)} ${arrow} (${diff > 0 ? '+' : ''}${diff.toFixed(4)})</strong></span>
+        </div>`;
+      }
+      
+      let metricsHtml = metricDiff('MAPE Teste (%)', 'test_lstm_mape_pct', true);
+      metricsHtml += metricDiff('RMSE Teste', 'test_lstm_rmse', true);
+      metricsHtml += metricDiff('MAE Teste', 'test_lstm_mae', true);
+      metricsHtml += metricDiff('Acurácia Dir. (%)', 'directional_accuracy_pct', false);
+      if (!metricsHtml) metricsHtml = '<span class="muted">Métricas muito similares ou ausentes.</span>';
+
+      let insights = [];
+      let score = 0;
+      
+      const diffMAPE = (mChild.test_lstm_mape_pct || 0) - (mParent.test_lstm_mape_pct || 0);
+      const diffRMSE = (mChild.test_lstm_rmse || 0) - (mParent.test_lstm_rmse || 0);
+      const diffMAE = (mChild.test_lstm_mae || 0) - (mParent.test_lstm_mae || 0);
+      const diffDIR = (mChild.directional_accuracy_pct || 0) - (mParent.directional_accuracy_pct || 0);
+      
+      const vParentMAPE = mParent.test_lstm_mape_pct !== undefined ? mParent.test_lstm_mape_pct.toFixed(2) + '%' : 'N/A';
+      const vChildMAPE = mChild.test_lstm_mape_pct !== undefined ? mChild.test_lstm_mape_pct.toFixed(2) + '%' : 'N/A';
+      
+      const vParentRMSE = mParent.test_lstm_rmse !== undefined ? mParent.test_lstm_rmse.toFixed(4) : 'N/A';
+      const vChildRMSE = mChild.test_lstm_rmse !== undefined ? mChild.test_lstm_rmse.toFixed(4) : 'N/A';
+      
+      const vParentMAE = mParent.test_lstm_mae !== undefined ? mParent.test_lstm_mae.toFixed(4) : 'N/A';
+      const vChildMAE = mChild.test_lstm_mae !== undefined ? mChild.test_lstm_mae.toFixed(4) : 'N/A';
+      
+      const vParentDIR = mParent.directional_accuracy_pct !== undefined ? mParent.directional_accuracy_pct.toFixed(1) + '%' : 'N/A';
+      const vChildDIR = mChild.directional_accuracy_pct !== undefined ? mChild.directional_accuracy_pct.toFixed(1) + '%' : 'N/A';
+
+      // 1. Métricas Insights
+      if (Math.abs(diffMAPE) > 0.001) {
+        if (diffMAPE < 0) { 
+          insights.push(`O erro percentual médio (<strong>MAPE</strong>) melhorou de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, indicando maior precisão percentual geral.`); 
+          score++; 
+        } else { 
+          insights.push(`O erro percentual médio (<strong>MAPE</strong>) subiu de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, revelando perda de acurácia no preço previsto.`); 
+          score--; 
+        }
+      }
+      
+      if (Math.abs(diffRMSE) > 0.0001) {
+        if (diffRMSE < 0) { 
+          insights.push(`O <strong>RMSE</strong> reduziu de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, indicando menor ocorrência de grandes erros (outliers/desvios de pico).`); 
+          score++; 
+        } else { 
+          insights.push(`O <strong>RMSE</strong> aumentou de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, apontando que o modelo cometeu desvios mais graves em dias atípicos.`); 
+          score--; 
+        }
+      }
+      
+      if (Math.abs(diffMAE) > 0.0001) {
+        if (diffMAE < 0) { 
+          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) caiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, mostrando que a distância absoluta média em R$ diminuiu.`); 
+          score++; 
+        } else { 
+          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) subiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, sinalizando desvio financeiro médio maior.`); 
+          score--; 
+        }
+      }
+      
+      if (Math.abs(diffDIR) > 0.1) {
+        if (diffDIR > 0) { 
+          insights.push(`A <strong>Acurácia Direcional</strong> aumentou de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, otimizando o acerto de tendência diária (alta/baixa).`); 
+          score++; 
+        } else { 
+          insights.push(`A <strong>Acurácia Direcional</strong> caiu de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, reduzindo a assertividade na previsão do sentido do movimento.`); 
+          score--; 
+        }
+      }
+
+      // 2. Parâmetros Mutados Insights
+      const pParent = parent.params || {};
+      const pChild = child.params || {};
+      
+      for (const [k, v] of Object.entries(pChild)) {
+        const pValParent = pParent[k];
+        if (pValParent !== undefined && pValParent !== v) {
+          if (k === 'learning_rate') {
+            const numP = parseFloat(pValParent);
+            const numC = parseFloat(v);
+            if (numC < numP) {
+              insights.push(`A redução do <code>learning_rate</code> (${pValParent} ➔ ${v}) reduziu a velocidade do passo do gradiente, buscando evitar oscilações em torno do mínimo de erro.`);
+            } else {
+              insights.push(`O aumento do <code>learning_rate</code> (${pValParent} ➔ ${v}) acelerou a convergência, mas pode ter gerado instabilidade no mínimo global.`);
+            }
+          }
+          if (k === 'hidden_size') {
+            const numP = parseInt(pValParent, 10);
+            const numC = parseInt(v, 10);
+            if (numC > numP) {
+              insights.push(`A ampliação do <code>hidden_size</code> (${pValParent} ➔ ${v}) aumentou a capacidade de memória interna da LSTM, embora aumente a complexidade e risco de overfitting.`);
+            } else {
+              insights.push(`A redução do <code>hidden_size</code> (${pValParent} ➔ ${v}) simplificou a capacidade da rede, atuando como um regularizador estrutural.`);
+            }
+          }
+          if (k === 'window_size') {
+            const numP = parseInt(pValParent, 10);
+            const numC = parseInt(v, 10);
+            if (numC > numP) {
+              insights.push(`O aumento do lookback (<code>window_size</code>: ${pValParent} ➔ ${v}) deu mais contexto temporal à LSTM, mas expôs a rede neural a comportamentos de mercado mais antigos.`);
+            } else {
+              insights.push(`A diminuição do lookback (<code>window_size</code>: ${pValParent} ➔ ${v}) focou a LSTM em padrões recentes de preço, mas reduziu a memória de médio prazo.`);
+            }
+          }
+          if (k === 'dropout') {
+            const numP = parseFloat(pValParent);
+            const numC = parseFloat(v);
+            if (numC > numP) {
+              insights.push(`O aumento do <code>dropout</code> (${pValParent} ➔ ${v}) impôs regularização mais agressiva para mitigar o overfitting dos dados de treino.`);
+            } else {
+              insights.push(`A redução do <code>dropout</code> (${pValParent} ➔ ${v}) permitiu maior ajuste das conexões, mas diminuiu a proteção contra memorização da série.`);
+            }
+          }
+          if (k === 'target_mode') {
+            insights.push(`A mudança de <code>target_mode</code> de <code>${pValParent}</code> para <code>${v}</code> modificou a escala do problema. Projeções sobre retornos costumam ser estacionárias e estatisticamente superiores a preços brutos.`);
+          }
+          if (k === 'feature_mode') {
+            insights.push(`A mudança de <code>feature_mode</code> de <code>${pValParent}</code> para <code>${v}</code> alterou a dimensionalidade de entrada da rede.`);
+          }
+        }
+      }
+      
+      let insightHtml = '';
+      if (insights.length > 0) {
+        insightHtml = '<ul style="margin: 0 0 10px 16px; padding: 0; list-style-type: disc;">' + 
+                      insights.map(item => `<li style="margin-bottom: 6px; color: var(--text);">${item}</li>`).join('') + 
+                      '</ul>';
+      } else {
+        insightHtml = '<p style="margin: 0 0 8px 0; color: var(--text);">A diferença entre os modelos foi muito pequena para gerar um insight significativo.</p>';
+      }
+      
+      let conclusion = '';
+      if (score >= 2) conclusion = "<span style='color: var(--success); font-weight: bold;'>🏆 Conclusão: A mutação foi um SUCESSO. A performance geral melhorou substancialmente!</span>";
+      else if (score === 1) conclusion = "<span style='color: var(--success); font-weight: bold;'>✅ Conclusão: Saldo positivo leve. Vale a pena manter as alterações.</span>";
+      else if (score === 0) conclusion = "<span style='color: var(--muted); font-weight: bold;'>⚖️ Conclusão: Empate técnico ou mudanças irrelevantes. Impacto não conclusivo.</span>";
+      else if (score === -1) conclusion = "<span style='color: var(--danger); font-weight: bold;'>⚠️ Conclusão: A mutação prejudicou o modelo em métricas chaves.</span>";
+      else conclusion = "<span style='color: var(--danger); font-weight: bold;'>❌ Conclusão: Regressão severa. Recomendado reverter hiperparâmetros.</span>";
+ 
+      document.getElementById('lineage-modal-content').innerHTML = `
+        <div style="margin-bottom: 16px; text-align: center; font-size: 13px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px;">
+          <span style="color: var(--muted);">Modelo Base (Pai):</span> <code>${parentId.substring(0,8)}</code> 
+          <strong style="margin: 0 10px;">➔</strong> 
+          <span style="color: var(--muted);">Modelo Derivado (Filho):</span> <code style="color: var(--accent-hover);">${childId.substring(0,8)}</code>
+        </div>
+        
+        <h4 style="margin: 0 0 10px 0; color: var(--text); border-bottom: 1px solid var(--panel-border); padding-bottom: 4px;">🛠️ O que mudou?</h4>
+        <div style="margin-bottom: 20px; font-size: 13px;">${paramDiffs}</div>
+ 
+        <h4 style="margin: 0 0 10px 0; color: var(--text); border-bottom: 1px solid var(--panel-border); padding-bottom: 4px;">📈 Impacto nas Métricas</h4>
+        <div style="font-size: 13px; margin-bottom: 16px;">${metricsHtml}</div>
+        
+        <div style="background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--primary); padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--text);">
+          <strong style="display: block; margin-bottom: 6px; color: var(--accent-hover);">🧠 Análise da MLOps Engine:</strong>
+          ${insightHtml}
+          <div style="margin-top: 8px;">${conclusion}</div>
+        </div>
+      `;
+      
+      const modal = document.getElementById('lineage-modal');
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    }
+
+    // Initialize
     loadModelCard();
     loadTelemetry();
+    
+    // Add simple pulse animation for the training button and pipeline steps
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+      
+      
+      
+      
+    `;
+    document.head.appendChild(style);
   </script>
 </body>
 </html>

@@ -12,16 +12,13 @@ numpy = "^1.26.0"
 pandas = "^2.2.0"
 scikit-learn = "^1.5.0"
 joblib = "^1.4.0"
-torch = { version = ">=2.2,<3.0", source = "pytorch-cu121" }
-yfinance = "^0.2.50"
-mlflow = "^3.0.0"
-matplotlib = "^3.9.0"
 fastapi = "^0.115.0"
 uvicorn = { extras = ["standard"], version = "^0.32.0" }
 pydantic = "^2.9.0"
 psutil = "^7.0.0"
 prometheus-fastapi-instrumentator = "^7.0.0"
 python-dotenv = "^1.2.2"
+onnxruntime = "^1.18.0"
 
 [[tool.poetry.source]]
 name = "pytorch-cu121"
@@ -31,6 +28,11 @@ priority = "explicit"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
 ipykernel = "^7.2.0"
+torch = { version = ">=2.2,<3.0", source = "pytorch-cu121" }
+yfinance = "^0.2.50"
+mlflow = "^3.0.0"
+matplotlib = "^3.9.0"
+onnx = "^1.21.0"
 
 
 [build-system]

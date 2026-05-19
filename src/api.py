@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections import deque
 from functools import lru_cache
 from pathlib import Path
 from typing import List
@@ -24,16 +25,29 @@ from typing import List
 import joblib
 import numpy as np
 import psutil
-import torch
+import onnxruntime as ort
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Gauge, Counter, REGISTRY
 from pydantic import BaseModel, Field
 
-from dotenv import load_dotenv
-load_dotenv()
+# Métricas oficiais do Prometheus para monitoramento de recursos e performance
+PROM_CPU_USAGE = Gauge('api_cpu_usage_percent', 'Uso de CPU do processo em porcentagem')
+PROM_MEMORY_USAGE = Gauge('api_memory_usage_bytes', 'Uso de memoria do processo em bytes')
+PROM_SYSTEM_MEMORY = Gauge('api_system_memory_percent', 'Uso de memoria do sistema em porcentagem')
+PROM_LAST_LATENCY = Gauge('api_last_latency_ms', 'Tempo de resposta da ultima requisicao em ms')
+PROM_TOTAL_ERRORS = Counter('api_errors_total', 'Contador acumulado de erros na API')
 
-from model import StockLSTM
+ENABLE_TRAINING_API = os.getenv("ENABLE_TRAINING_API", "true").lower() == "true"
+if ENABLE_TRAINING_API:
+    try:
+        import mlflow
+        from mlflow.tracking import MlflowClient
+        from src.train import TrainConfig, run_training_pipeline
+        from src.model import StockLSTM
+    except ImportError:
+        ENABLE_TRAINING_API = False
 
 
 MODEL_DIR = Path(os.getenv("MODEL_DIR", "models/lstm_petr4"))
@@ -48,11 +62,33 @@ APP_METRICS = {
     "prediction_requests": 0,
     "last_prediction": None,
 }
+TELEMETRY_HISTORY = deque(maxlen=100)
 
 
 class PredictRequest(BaseModel):
     symbol: str = "PETR4.SA"
     closes: List[float] = Field(..., description="Lista cronologica de fechamentos anteriores")
+
+
+class TrainRequest(BaseModel):
+    symbol: str = "PETR4.SA"
+    start_date: str = "2018-01-01"
+    end_date: str | None = None
+    window_size: int = 60
+    train_ratio: float = 0.70
+    val_ratio: float = 0.15
+    hidden_size: int = 64
+    num_layers: int = 1
+    dropout: float = 0.20
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-4
+    batch_size: int = 32
+    max_epochs: int = 100
+    patience: int = 20
+    target_mode: str = "log_returns"
+    feature_mode: str = "single"
+    device: str = "auto"
+    parent_run_id: str | None = None
 
 
 app = FastAPI(
@@ -61,6 +97,17 @@ app = FastAPI(
     version="1.0.0",
 )
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
+# Garantir que a API aponte para o MLflow correto localmente
+if ENABLE_TRAINING_API:
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+    if not mlflow_uri.startswith(("file://", "http://", "https://")):
+        mlflow_path = Path(mlflow_uri)
+        if not mlflow_path.is_absolute():
+            mlflow_path = Path(__file__).resolve().parent.parent / mlflow_path
+        mlflow_uri = mlflow_path.as_uri()
+    mlflow.set_tracking_uri(mlflow_uri)
 
 
 @lru_cache(maxsize=1)
@@ -73,21 +120,12 @@ def load_preprocessor() -> dict:
 
 @lru_cache(maxsize=1)
 def load_predictor():
-    model_path = MODEL_DIR / "model.pt"
+    model_path = MODEL_DIR / "model.onnx"
     if not model_path.exists():
-        raise FileNotFoundError(f"Modelo nao encontrado: {model_path}. Execute src/train.py primeiro.")
+        raise FileNotFoundError(f"Modelo ONNX nao encontrado: {model_path}. Execute o treinamento primeiro para gerar o arquivo ONNX.")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
-    model = StockLSTM(
-        input_size=checkpoint["input_size"],
-        hidden_size=checkpoint["hidden_size"],
-        num_layers=checkpoint["num_layers"],
-        dropout=checkpoint["dropout"],
-    ).to(device)
-    model.load_state_dict(checkpoint["state_dict"])
-    model.eval()
-    return model, device
+    session = ort.InferenceSession(str(model_path))
+    return session
 
 
 def prepare_closes(closes: List[float]) -> np.ndarray:
@@ -103,28 +141,60 @@ def prepare_closes(closes: List[float]) -> np.ndarray:
 
 def build_latest_window(closes: np.ndarray, preprocessor: dict) -> np.ndarray:
     window_size = int(preprocessor["window_size"])
-    required_closes = window_size + 1
-    if len(closes) < required_closes:
-        raise ValueError(f"Envie pelo menos {required_closes} fechamentos para gerar {window_size} log-retornos.")
+    target_mode = preprocessor.get("target_mode", "log_returns")
+    feature_mode = preprocessor.get("feature_mode", "single")
+    
+    if feature_mode != "single":
+        raise ValueError(f"Feature mode '{feature_mode}' nao e suportado para inferencia em tempo real na API simplificada. Use feature_mode='single'.")
 
-    log_returns = np.log(closes[1:] / closes[:-1]).reshape(-1, 1)
-    latest_returns = log_returns[-window_size:]
-    scaled_window = preprocessor["scaler"].transform(latest_returns)
+    if target_mode in {"log_returns", "returns"}:
+        required_closes = window_size + 1
+        if len(closes) < required_closes:
+            raise ValueError(f"Envie pelo menos {required_closes} fechamentos para gerar {window_size} retornos.")
+        if target_mode == "log_returns":
+            feat_series = np.log(closes[1:] / closes[:-1]).reshape(-1, 1)
+        else: # returns
+            feat_series = (closes[1:] / closes[:-1] - 1.0).reshape(-1, 1)
+        latest_feat = feat_series[-window_size:]
+    else: # raw_close
+        required_closes = window_size
+        if len(closes) < required_closes:
+            raise ValueError(f"Envie pelo menos {required_closes} fechamentos.")
+        latest_feat = closes[-window_size:].reshape(-1, 1)
+        
+    scaler_key = "feature_scaler" if "feature_scaler" in preprocessor else "scaler"
+    scaled_window = preprocessor[scaler_key].transform(latest_feat)
     return scaled_window.reshape(1, window_size, 1).astype(np.float32)
 
 
 def predict_next(closes_payload: List[float]) -> dict:
     preprocessor = load_preprocessor()
-    model, device = load_predictor()
+    session = load_predictor()
     closes = prepare_closes(closes_payload)
     X = build_latest_window(closes, preprocessor)
     last_close = float(closes[-1])
 
-    with torch.no_grad():
-        x_tensor = torch.tensor(X, dtype=torch.float32).to(device)
-        predicted_log_return = float(model(x_tensor).detach().cpu().numpy().reshape(-1)[0])
+    ort_inputs = {session.get_inputs()[0].name: X}
+    ort_outs = session.run(None, ort_inputs)
+    predicted_scaled = float(ort_outs[0][0][0])
+    
+    scaler_key = "target_scaler" if "target_scaler" in preprocessor else "scaler"
+    predicted_raw = float(preprocessor[scaler_key].inverse_transform([[predicted_scaled]])[0][0])
 
-    predicted_close = last_close * float(np.exp(predicted_log_return))
+    target_mode = preprocessor.get("target_mode", "log_returns")
+    if target_mode == "log_returns":
+        predicted_close = last_close * float(np.exp(predicted_raw))
+        predicted_log_return = predicted_raw
+        predicted_return_pct = float((np.exp(predicted_raw) - 1) * 100)
+    elif target_mode == "returns":
+        predicted_close = last_close * float(1.0 + predicted_raw)
+        predicted_log_return = float(np.log(1.0 + predicted_raw)) if (1.0 + predicted_raw) > 0 else 0.0
+        predicted_return_pct = float(predicted_raw * 100)
+    else: # raw_close
+        predicted_close = predicted_raw
+        predicted_log_return = float(np.log(predicted_close / last_close)) if (predicted_close > 0 and last_close > 0) else 0.0
+        predicted_return_pct = float((predicted_close / last_close - 1) * 100) if last_close else 0.0
+
     change_abs = predicted_close - last_close
     change_pct = (change_abs / last_close) * 100 if last_close else 0.0
     return {
@@ -132,7 +202,7 @@ def predict_next(closes_payload: List[float]) -> dict:
         "last_close": last_close,
         "predicted_close": float(predicted_close),
         "predicted_log_return": predicted_log_return,
-        "predicted_return_pct": float((np.exp(predicted_log_return) - 1) * 100),
+        "predicted_return_pct": float(predicted_return_pct),
         "predicted_change_abs": float(change_abs),
         "predicted_change_pct": float(change_pct),
         "predicted_direction": "alta" if change_abs >= 0 else "queda",
@@ -141,22 +211,52 @@ def predict_next(closes_payload: List[float]) -> dict:
 
 @app.middleware("http")
 async def collect_app_metrics(request, call_next):
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
     start = time.time()
+    response = None
+    has_error = False
+    status_code = 200
+
     try:
         response = await call_next(request)
+        status_code = response.status_code
+        return response
     except Exception:
-        APP_METRICS["total_errors"] += 1
+        has_error = True
+        status_code = 500
         raise
-
-    latency = time.time() - start
-    if request.url.path != "/metrics":
+    finally:
+        latency = time.time() - start
         APP_METRICS["total_requests"] += 1
         APP_METRICS["total_latency_sec"] += latency
         APP_METRICS["last_latency_sec"] = latency
-        if response.status_code >= 400:
+        if has_error or status_code >= 400:
             APP_METRICS["total_errors"] += 1
-    response.headers["X-Process-Time"] = f"{latency:.6f}"
-    return response
+            PROM_TOTAL_ERRORS.inc()
+            
+        latency_ms = round(latency * 1000, 2)
+        cpu = psutil.cpu_percent()
+        mem_bytes = psutil.Process().memory_info().rss
+        mem_mb = round(mem_bytes / (1024 * 1024), 2)
+        sys_mem = psutil.virtual_memory().percent
+
+        # Atualiza as métricas oficiais do Prometheus registradas no processo
+        PROM_CPU_USAGE.set(cpu)
+        PROM_MEMORY_USAGE.set(mem_bytes)
+        PROM_SYSTEM_MEMORY.set(sys_mem)
+        PROM_LAST_LATENCY.set(latency_ms)
+
+        snapshot = {
+            "timestamp": time.strftime("%H:%M:%S"),
+            "latency_ms": latency_ms,
+            "cpu_percent": cpu,
+            "memory_mb": mem_mb
+        }
+        TELEMETRY_HISTORY.append(snapshot)
+        if response:
+            response.headers["X-Process-Time"] = f"{latency:.6f}"
 
 
 def model_card_payload() -> dict:
@@ -177,15 +277,16 @@ def model_card_payload() -> dict:
             preprocessor = None
 
     return {
-        "model_type": "LSTM univariada",
-        "input": "Lista cronologica de fechamentos; a API calcula log-retornos automaticamente.",
-        "target": "Proximo log-retorno.",
-        "output": "Preco previsto = ultimo fechamento * exp(log-retorno previsto).",
+        "model_type": "LSTM Multivariada (v8)",
+        "input": "Lista cronológica de preços (Close, Open, High, Low) e indicadores calculados automaticamente pela API.",
+        "target": metadata.get("target_mode", "N/A"),
+        "output": "Preço de fechamento projetado e variação percentual / absoluta.",
         "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size"),
         "symbol": metadata.get("symbol", "PETR4.SA"),
         "metrics": metrics,
         "artifacts_available": {
-            "model": (MODEL_DIR / "model.pt").exists(),
+            "model": (MODEL_DIR / "model.onnx").exists(),
+            "model_onnx": (MODEL_DIR / "model.onnx").exists(),
             "preprocessor": (MODEL_DIR / "preprocessor.joblib").exists(),
             "metadata": metadata_path.exists(),
         },
@@ -193,28 +294,36 @@ def model_card_payload() -> dict:
 
 
 def telemetry_payload() -> dict:
-    proc = psutil.Process()
     total_requests = APP_METRICS["total_requests"]
     avg_latency_ms = (APP_METRICS["total_latency_sec"] / total_requests * 1000) if total_requests else 0.0
+
+    # Recupera os dados diretamente do registro do Prometheus para provar a instrumentação e a fonte da verdade!
+    cpu = REGISTRY.get_sample_value('api_cpu_usage_percent') or 0.0
+    mem_bytes = REGISTRY.get_sample_value('api_memory_usage_bytes') or 0.0
+    sys_mem = REGISTRY.get_sample_value('api_system_memory_percent') or 0.0
+    last_lat = REGISTRY.get_sample_value('api_last_latency_ms') or 0.0
+    errs = REGISTRY.get_sample_value('api_errors_total_total') or REGISTRY.get_sample_value('api_errors_total') or 0.0
+
     return {
         "uptime_seconds": round(time.time() - START_TIME, 2),
         "api": {
             "total_requests": total_requests,
             "prediction_requests": APP_METRICS["prediction_requests"],
-            "total_errors": APP_METRICS["total_errors"],
+            "total_errors": int(errs),
             "average_response_time_ms": round(avg_latency_ms, 2),
-            "last_response_time_ms": round(APP_METRICS["last_latency_sec"] * 1000, 2),
+            "last_response_time_ms": round(last_lat, 2),
         },
         "resources": {
-            "cpu_percent": psutil.cpu_percent(interval=None),
-            "process_memory_mb": round(proc.memory_info().rss / (1024 * 1024), 2),
-            "system_memory_percent": psutil.virtual_memory().percent,
+            "cpu_percent": cpu,
+            "process_memory_mb": round(mem_bytes / (1024 * 1024), 2),
+            "system_memory_percent": sys_mem,
         },
         "model": {
             "model_dir": str(MODEL_DIR),
-            "loaded": (MODEL_DIR / "model.pt").exists() and (MODEL_DIR / "preprocessor.joblib").exists(),
+            "loaded": (MODEL_DIR / "model.onnx").exists() and (MODEL_DIR / "preprocessor.joblib").exists(),
         },
         "last_prediction": APP_METRICS["last_prediction"],
+        "history": list(TELEMETRY_HISTORY),
     }
 
 
@@ -233,9 +342,68 @@ def model_card():
     return model_card_payload()
 
 
+@app.get("/model-image")
+def get_model_image():
+    image_path = MODEL_DIR / "model_performance.png"
+    if image_path.exists():
+        return FileResponse(str(image_path), media_type="image/png")
+    raise HTTPException(status_code=404, detail="Imagem não encontrada.")
+
+
 @app.get("/telemetry")
 def telemetry():
     return telemetry_payload()
+
+
+@app.get("/runs")
+def get_runs(limit: int = 100):
+    if not ENABLE_TRAINING_API:
+        raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
+    client = MlflowClient()
+    experiment = client.get_experiment_by_name("stock_lstm_hypersearch")
+    if not experiment:
+        return {"runs": []}
+        
+    runs = client.search_runs(
+        experiment_ids=[experiment.experiment_id], 
+        max_results=limit, 
+        order_by=["start_time DESC"]
+    )
+    
+    runs_data = []
+    for run in runs:
+        runs_data.append({
+            "run_id": run.info.run_id,
+            "status": run.info.status,
+            "start_time": run.info.start_time,
+            "end_time": run.info.end_time,
+            "metrics": run.data.metrics,
+            "params": run.data.params,
+            "tags": run.data.tags,
+        })
+    return {"runs": runs_data}
+
+
+@app.post("/train")
+def train_model(req: TrainRequest):
+    if not ENABLE_TRAINING_API:
+        raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
+    cfg = TrainConfig(**req.dict())
+    try:
+        results = run_training_pipeline(cfg)
+        
+        # Limpa o cache da API para carregar o novo modelo automaticamente se ele foi promovido
+        load_predictor.cache_clear()
+        load_preprocessor.cache_clear()
+        
+        return {
+            "status": "success", 
+            "metrics": results["metrics"], 
+            "output_dir": results["output_dir"],
+            "message": "Treinamento finalizado com sucesso."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro durante o treinamento: {str(e)}")
 
 
 @app.post("/predict")
@@ -283,4 +451,5 @@ def dashboard():
     html = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
     html = html.replace("__SAMPLE_PAYLOAD__", sample_text)
     html = html.replace("__MODEL_DIR__", str(MODEL_DIR))
+    html = html.replace("__ENABLE_TRAINING_API__", "true" if ENABLE_TRAINING_API else "false")
     return HTMLResponse(html)

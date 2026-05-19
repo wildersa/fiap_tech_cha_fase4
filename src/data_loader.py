@@ -5,7 +5,6 @@ Carregamento e preparacao da serie de fechamento.
 from __future__ import annotations
 
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
@@ -22,7 +21,11 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     expected = {
         "date": "Date",
         "datetime": "Date",
+        "open": "Open",
+        "high": "High",
+        "low": "Low",
         "close": "Close",
+        "volume": "Volume",
         "adj close": "Adj Close",
         "adj_close": "Adj Close",
     }
@@ -42,7 +45,10 @@ def ensure_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_csv(path: str | Path) -> pd.DataFrame:
-    return ensure_datetime_index(normalize_columns(pd.read_csv(path)))
+    df = ensure_datetime_index(normalize_columns(pd.read_csv(path)))
+    # Capitalize the columns after normalize_columns just in case
+    df.columns = [col.capitalize() for col in df.columns]
+    return df
 
 
 def load_yfinance(symbol: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
@@ -61,20 +67,36 @@ def load_yfinance(symbol: str, start_date: str, end_date: str | None = None) -> 
     return ensure_datetime_index(normalize_columns(df))
 
 
-def build_close_frame(df: pd.DataFrame) -> pd.DataFrame:
-    df = ensure_datetime_index(normalize_columns(df))
-    if "Close" not in df.columns:
-        raise ValueError("Coluna obrigatoria ausente: Close")
+def add_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Adiciona features multivariadas para a LSTM.
+    Inclui medias moveis, log returns, volatilidade, momentum e normalizacao de volume.
+    """
+    data = df.copy()
 
-    close = pd.to_numeric(df["Close"], errors="coerce")
-    close_frame = pd.DataFrame({"Close": close}).replace([np.inf, -np.inf], np.nan).dropna()
-    close_frame = close_frame.loc[close_frame["Close"] > 0].sort_index()
-    if len(close_frame) < 3:
-        raise ValueError("Historico insuficiente de fechamentos.")
-    return close_frame
+    required = ["Open", "High", "Low", "Close", "Volume"]
+    missing = [c for c in required if c not in data.columns]
+    if missing:
+        raise ValueError(f"Colunas obrigatorias ausentes: {missing}")
 
+    for col in required:
+        data[col] = pd.to_numeric(data[col], errors="coerce")
 
-def build_return_frame(df: pd.DataFrame) -> pd.DataFrame:
-    close_frame = build_close_frame(df)
-    close_frame["Log_Return"] = np.log(close_frame["Close"] / close_frame["Close"].shift(1))
-    return close_frame.replace([np.inf, -np.inf], np.nan).dropna()
+    # Features de preco/tendencia
+    data["SMA_7"] = data["Close"].rolling(7).mean()
+    data["SMA_21"] = data["Close"].rolling(21).mean()
+
+    # Features estacionarias/relativas
+    data["Return"] = data["Close"].pct_change()
+    data["Log_Return"] = np.log(data["Close"] / data["Close"].shift(1))
+    data["Volatility_21"] = data["Log_Return"].rolling(21).std()
+    data["Momentum_5"] = data["Close"] / data["Close"].shift(5) - 1.0
+    data["Range_Pct"] = (data["High"] - data["Low"]) / data["Close"]
+    data["Volume_Z"] = (
+        (data["Volume"] - data["Volume"].rolling(21).mean())
+        / data["Volume"].rolling(21).std()
+    )
+
+    data = data.replace([np.inf, -np.inf], np.nan).dropna()
+    data = data.loc[data["Volume"] > 0].copy()
+    return data
