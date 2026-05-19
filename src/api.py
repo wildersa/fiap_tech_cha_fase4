@@ -388,7 +388,7 @@ def get_runs(limit: int = 100):
 def train_model(req: TrainRequest):
     if not ENABLE_TRAINING_API:
         raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
-    cfg = TrainConfig(**req.dict())
+    cfg = TrainConfig(**req.model_dump())
     try:
         results = run_training_pipeline(cfg)
         

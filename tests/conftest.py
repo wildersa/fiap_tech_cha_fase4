@@ -33,9 +33,10 @@ def temp_mlflow_dir():
 @pytest.fixture(autouse=True)
 def mock_mlflow_env(temp_mlflow_dir, monkeypatch):
     """Configura o MLflow para usar o diretório temporário em todos os testes."""
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", f"file://{temp_mlflow_dir}")
+    uri = Path(temp_mlflow_dir).as_uri()
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
     import mlflow
-    mlflow.set_tracking_uri(f"file://{temp_mlflow_dir}")
+    mlflow.set_tracking_uri(uri)
 
 @pytest.fixture
 def temp_model_dir():

@@ -33,8 +33,19 @@ yfinance = "^0.2.50"
 mlflow = "^3.0.0"
 matplotlib = "^3.9.0"
 onnx = "^1.21.0"
+httpx = "^0.28.1"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+filterwarnings = [
+  "ignore::FutureWarning",
+  "ignore::UserWarning",
+  "ignore:Converting a tensor to a Python boolean"
+]
