@@ -468,6 +468,9 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         
         mlflow.log_metrics(
             {
+                "val_lstm_mae": metrics_val["mae"],
+                "val_lstm_rmse": metrics_val["rmse"],
+                "val_lstm_mape_pct": metrics_val["mape_pct"],
                 "test_lstm_mae": metrics_test["mae"],
                 "test_lstm_rmse": metrics_test["rmse"],
                 "test_lstm_mape_pct": metrics_test["mape_pct"],
@@ -546,6 +549,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         joblib.dump(preprocess, save_dir / "preprocessor.joblib")
 
         metadata = {
+            "run_id": run.info.run_id,
             "symbol": cfg.symbol,
             "data_source": data_source,
             "window_size": cfg.window_size,

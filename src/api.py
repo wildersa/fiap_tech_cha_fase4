@@ -113,6 +113,91 @@ if ENABLE_TRAINING_API:
     mlflow.set_tracking_uri(mlflow_uri)
 
 
+def sync_best_model_from_mlflow() -> None:
+    """
+    MLOps Automatic Promotion:
+    Busca em todas as runs de todas as experiencias do MLflow o modelo com o menor MAPE
+    e o promove como o modelo ativo (copiando seus artefatos para MODEL_DIR),
+    se for melhor do que o modelo atualmente em disco.
+    """
+    if not ENABLE_TRAINING_API:
+        return
+
+    try:
+        from mlflow.tracking import MlflowClient
+        import shutil
+        client = MlflowClient()
+        experiments = client.search_experiments()
+        best_run = None
+        best_mape = float("inf")
+
+        for exp in experiments:
+            runs = client.search_runs(experiment_ids=[exp.experiment_id])
+            for r in runs:
+                # Tenta obter a métrica de teste ou validação
+                mape = (
+                    r.data.metrics.get("lstm_mape_pct") or 
+                    r.data.metrics.get("test_lstm_mape_pct") or 
+                    r.data.metrics.get("test_lstm_mape")
+                )
+                if mape is not None and mape > 0:
+                    if mape < best_mape:
+                        best_mape = mape
+                        best_run = r
+
+        if best_run is not None:
+            # Verifica o modelo atual no disco
+            current_mape = float("inf")
+            metrics_path = MODEL_DIR / "metrics.json"
+            if metrics_path.exists():
+                try:
+                    current_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+                    current_mape = (
+                        current_metrics.get("lstm_test", {}).get("mape_pct") or
+                        current_metrics.get("test_lstm_mape_pct") or
+                        current_metrics.get("lstm_mape_pct") or
+                        float("inf")
+                    )
+                except Exception:
+                    pass
+
+            # Se o modelo do MLflow for estritamente melhor (com margem de precisão para evitar float inaccuracies), promove!
+            if best_mape < (current_mape - 1e-6):
+                print(f"[MLOps] Novo Campeao detectado no MLflow (Run {best_run.info.run_id}) com MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
+                
+                # Garante que MODEL_DIR existe
+                MODEL_DIR.mkdir(parents=True, exist_ok=True)
+                
+                # Baixa os artefatos da run
+                local_path = mlflow.artifacts.download_artifacts(run_id=best_run.info.run_id)
+                src_path = Path(local_path)
+                
+                # Copia os arquivos relevantes
+                copied_any = False
+                for filename in ["model.onnx", "model.pt", "model.safetensors", "preprocessor.joblib", "metadata.json", "metrics.json", "model_performance.png"]:
+                    src_file = src_path / filename
+                    if src_file.exists():
+                        shutil.copy(str(src_file), str(MODEL_DIR / filename))
+                        copied_any = True
+                
+                if copied_any:
+                    # Limpa caches da API
+                    load_preprocessor.cache_clear()
+                    load_predictor.cache_clear()
+                    print(f"[MLOps] Modelo do MLflow (Run {best_run.info.run_id}) promovido com sucesso para {MODEL_DIR}.")
+                else:
+                    print(f"[MLOps] Aviso: Nenhum artefato copiado de {src_path}")
+            else:
+                print(f"[MLOps] O modelo em disco ({current_mape:.4f}%) ja e o melhor ou empata com o melhor do MLflow ({best_mape:.4f}%)")
+    except Exception as e:
+        print(f"[MLOps] Erro ao sincronizar melhor modelo do MLflow: {e}")
+
+
+@app.on_event("startup")
+def startup_event():
+    sync_best_model_from_mlflow()
+
+
 @lru_cache(maxsize=1)
 def load_preprocessor() -> dict:
     path = MODEL_DIR / "preprocessor.joblib"
@@ -263,6 +348,9 @@ async def collect_app_metrics(request, call_next):
 
 
 def model_card_payload() -> dict:
+    # MLOps: Garante que estamos exibindo e executando o melhor modelo do MLflow
+    sync_best_model_from_mlflow()
+
     metadata_path = MODEL_DIR / "metadata.json"
     metrics_path = MODEL_DIR / "metrics.json"
     metadata = {}
@@ -286,6 +374,7 @@ def model_card_payload() -> dict:
         "output": "Preço de fechamento projetado e variação percentual / absoluta.",
         "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size"),
         "symbol": metadata.get("symbol", "PETR4.SA"),
+        "run_id": metadata.get("run_id", "Local / Sem MLflow"),
         "metrics": metrics,
         "artifacts_available": {
             "model": (MODEL_DIR / "model.onnx").exists(),
