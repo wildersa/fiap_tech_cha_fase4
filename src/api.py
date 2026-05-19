@@ -87,6 +87,9 @@ class TrainRequest(BaseModel):
     patience: int = 20
     target_mode: str = "log_returns"
     feature_mode: str = "single"
+    feature_scaler_type: str = "standard"
+    target_scaler_type: str = "standard"
+    grad_clip: float | None = 1.0
     device: str = "auto"
     parent_run_id: str | None = None
 

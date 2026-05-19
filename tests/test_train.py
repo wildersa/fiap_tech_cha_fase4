@@ -155,3 +155,25 @@ def test_run_training_pipeline_invalid_modes():
     mlflow.end_run()
     with pytest.raises(ValueError, match="Feature mode desconhecido"):
         run_training_pipeline(cfg)
+
+
+def test_create_windowed_sequences_flexible_scaling(synthetic_df):
+    window_size = 10
+    feature_cols = ["Close"]
+    target_col = "Close"
+    train_end_row = 70
+
+    # Test MinMax
+    X_minmax, y_minmax, _, _, _, _, _ = create_windowed_sequences(
+        synthetic_df, window_size, feature_cols, target_col, train_end_row,
+        feature_scaler_type="minmax", target_scaler_type="minmax"
+    )
+    # Check bounds on the first training window: MinMax scale must be between [0, 1]
+    assert np.all(X_minmax[0] >= -1e-6) and np.all(X_minmax[0] <= 1.000001)
+
+    # Test Robust
+    X_robust, y_robust, _, _, _, _, _ = create_windowed_sequences(
+        synthetic_df, window_size, feature_cols, target_col, train_end_row,
+        feature_scaler_type="robust", target_scaler_type="robust"
+    )
+    assert X_robust.shape == X_minmax.shape

@@ -44,7 +44,12 @@ def test_add_features():
 
     featured = add_features(df)
 
-    expected_cols = ["SMA_7", "SMA_21", "Return", "Log_Return", "Volatility_21", "Momentum_5", "Range_Pct", "Volume_Z"]
+    expected_cols = [
+        "SMA_7", "SMA_21", "Return", "Log_Return", "Volatility_21", "Momentum_5", "Range_Pct", "Volume_Z",
+        "RSI_14", "MACD", "MACD_Signal", "MACD_Hist", "BB_Width", "ATR_14",
+        "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5",
+        "Rolling_Return_5", "Rolling_Return_20", "Day_Of_Week", "Log_Volume"
+    ]
     for col in expected_cols:
         assert col in featured.columns
 

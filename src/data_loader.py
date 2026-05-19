@@ -70,7 +70,9 @@ def load_yfinance(symbol: str, start_date: str, end_date: str | None = None) -> 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Adiciona features multivariadas para a LSTM.
-    Inclui medias moveis, log returns, volatilidade, momentum e normalizacao de volume.
+    Inclui medias moveis, log returns, volatilidade, momentum, normalizacao de volume,
+    RSI, MACD, Bollinger Bands Width, ATR, lags de retorno, retornos acumulados moveis,
+    dia da semana e log do volume.
     """
     data = df.copy()
 
@@ -96,6 +98,50 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         (data["Volume"] - data["Volume"].rolling(21).mean())
         / data["Volume"].rolling(21).std()
     )
+
+    # 1. RSI_14
+    delta = data["Close"].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(com=13, adjust=False).mean()
+    avg_loss = loss.ewm(com=13, adjust=False).mean()
+    rs = avg_gain / (avg_loss + 1e-9)
+    data["RSI_14"] = 100 - (100 / (1 + rs))
+
+    # 2. MACD
+    ema_12 = data["Close"].ewm(span=12, adjust=False).mean()
+    ema_26 = data["Close"].ewm(span=26, adjust=False).mean()
+    data["MACD"] = ema_12 - ema_26
+    data["MACD_Signal"] = data["MACD"].ewm(span=9, adjust=False).mean()
+    data["MACD_Hist"] = data["MACD"] - data["MACD_Signal"]
+
+    # 3. Bollinger Band Width
+    sma_20 = data["Close"].rolling(window=20).mean()
+    std_20 = data["Close"].rolling(window=20).std()
+    data["BB_Width"] = (2 * 2 * std_20) / (sma_20 + 1e-9)
+
+    # 4. ATR_14
+    high_low = data["High"] - data["Low"]
+    high_close_prev = (data["High"] - data["Close"].shift(1)).abs()
+    low_close_prev = (data["Low"] - data["Close"].shift(1)).abs()
+    tr = pd.concat([high_low, high_close_prev, low_close_prev], axis=1).max(axis=1)
+    data["ATR_14"] = tr.ewm(com=13, adjust=False).mean()
+
+    # 5. Lags de retorno
+    data["Log_Return_Lag1"] = data["Log_Return"].shift(1)
+    data["Log_Return_Lag2"] = data["Log_Return"].shift(2)
+    data["Log_Return_Lag3"] = data["Log_Return"].shift(3)
+    data["Log_Return_Lag5"] = data["Log_Return"].shift(5)
+
+    # 6. Rolling returns
+    data["Rolling_Return_5"] = data["Close"] / data["Close"].shift(5) - 1.0
+    data["Rolling_Return_20"] = data["Close"] / data["Close"].shift(20) - 1.0
+
+    # 7. Day of Week
+    data["Day_Of_Week"] = data.index.dayofweek.astype(float)
+
+    # 8. Log Volume
+    data["Log_Volume"] = np.log(data["Volume"] + 1e-9)
 
     data = data.replace([np.inf, -np.inf], np.nan).dropna()
     data = data.loc[data["Volume"] > 0].copy()
