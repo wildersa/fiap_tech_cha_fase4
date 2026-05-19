@@ -96,6 +96,26 @@ def test_train_endpoint(mock_run_train):
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
+
+@patch("src.api.run_training_pipeline")
+def test_train_endpoint_custom_params(mock_run_train):
+    mock_run_train.return_value = {
+        "metrics": {"mae": 0.1},
+        "output_dir": "some/dir"
+    }
+
+    payload = {
+        "symbol": "PETR4.SA",
+        "feature_mode": "custom",
+        "selected_features": ["Log_Return", "RSI_14"],
+        "feature_preset": "custom",
+        "max_epochs": 1,
+        "batch_size": 4
+    }
+    response = client.post("/train", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+
 @patch("src.api.MlflowClient")
 def test_runs_endpoint(mock_mlflow_client_class):
     mock_client = MagicMock()

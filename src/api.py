@@ -156,17 +156,17 @@ class TrainRequest(BaseModel):
     )
     feature_mode: str = Field(
         "single",
-        description="Tipo de features: 'single' (apenas preço) ou 'ohlcv_returns' (OHLCV completo).",
+        description="Tipo de features: 'single', 'ohlcv', 'ohlcv_returns', 'technical_features' ou 'custom'.",
         examples=["single"]
     )
     feature_scaler_type: str = Field(
         "standard",
-        description="Tipo do normalizador das features: 'standard' ou 'minmax'.",
+        description="Tipo do normalizador das features: 'standard', 'minmax' ou 'robust'.",
         examples=["standard"]
     )
     target_scaler_type: str = Field(
         "standard",
-        description="Tipo do normalizador do alvo (target): 'standard' ou 'minmax'.",
+        description="Tipo do normalizador do alvo (target): 'standard', 'minmax' ou 'robust'.",
         examples=["standard"]
     )
     grad_clip: float | None = Field(
@@ -183,6 +183,16 @@ class TrainRequest(BaseModel):
         None,
         description="ID de uma run do MLflow para associar a linhagem (tags de pai/filho).",
         examples=["52c6f10c0e1847c2b530514fe96b96db"]
+    )
+    selected_features: List[str] | None = Field(
+        None,
+        description="Lista de features selecionadas (obrigatório se feature_mode='custom').",
+        examples=[["Log_Return", "RSI_14", "MACD"]]
+    )
+    feature_preset: str | None = Field(
+        None,
+        description="Preset de features a ser utilizado (returns_basic, returns_trend, returns_volatility, technical_complete).",
+        examples=["returns_trend"]
     )
 
 

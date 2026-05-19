@@ -177,3 +177,52 @@ def test_create_windowed_sequences_flexible_scaling(synthetic_df):
         feature_scaler_type="robust", target_scaler_type="robust"
     )
     assert X_robust.shape == X_minmax.shape
+
+
+@patch("src.train.load_yfinance")
+def test_run_training_pipeline_custom_features(mock_load_yf, synthetic_df, temp_model_dir):
+    mock_load_yf.return_value = synthetic_df
+
+    cfg = TrainConfig(
+        symbol="TEST",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(temp_model_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+        feature_mode="custom",
+        selected_features=["Log_Return", "RSI_14", "MACD"]
+    )
+
+    mlflow.end_run()
+    results = run_training_pipeline(cfg)
+    assert "metrics" in results
+    assert results["metrics"]["lstm_test"]["mae"] >= 0
+
+
+@patch("src.train.load_yfinance")
+def test_run_training_pipeline_feature_preset(mock_load_yf, synthetic_df, temp_model_dir):
+    mock_load_yf.return_value = synthetic_df
+
+    cfg = TrainConfig(
+        symbol="TEST",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(temp_model_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+        feature_mode="technical_features",
+        feature_preset="returns_basic"
+    )
+
+    mlflow.end_run()
+    results = run_training_pipeline(cfg)
+    assert "metrics" in results

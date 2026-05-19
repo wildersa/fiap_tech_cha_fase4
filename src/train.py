@@ -35,6 +35,7 @@ load_dotenv()
 
 from src.data_loader import add_features, load_csv, load_yfinance
 from src.model import StockLSTM
+from src.features import FEATURE_PRESETS, FEATURE_REGISTRY
 
 
 @dataclass
@@ -62,6 +63,52 @@ class TrainConfig:
     target_scaler_type: str = "standard"
     device: str = "auto"
     parent_run_id: str | None = None
+    selected_features: list[str] | None = None
+    feature_preset: str | None = None
+
+
+def resolve_target_column(target_mode: str) -> str:
+    if target_mode == "log_returns":
+        return "Log_Return"
+    elif target_mode == "raw_close":
+        return "Close"
+    elif target_mode == "returns":
+        return "Return"
+    else:
+        raise ValueError(f"Target mode desconhecido: {target_mode}")
+
+
+def resolve_feature_columns(cfg: TrainConfig, target_col: str) -> list[str]:
+    valid_names = {f["name"] for f in FEATURE_REGISTRY}
+    
+    if cfg.feature_mode == "single":
+        return [target_col]
+    elif cfg.feature_mode == "ohlcv":
+        return ["Open", "High", "Low", "Close", "Volume"]
+    elif cfg.feature_mode == "ohlcv_returns":
+        return ["Open", "High", "Low", "Close", "Volume", "Log_Return"]
+    elif cfg.feature_mode == "technical_features":
+        if cfg.selected_features:
+            features = cfg.selected_features
+        elif cfg.feature_preset:
+            if cfg.feature_preset not in FEATURE_PRESETS:
+                raise ValueError(f"Preset desconhecido: {cfg.feature_preset}")
+            features = FEATURE_PRESETS[cfg.feature_preset]
+        else:
+            features = FEATURE_PRESETS["technical_complete"]
+    elif cfg.feature_mode == "custom":
+        if not cfg.selected_features:
+            raise ValueError("O modo 'custom' exige que 'selected_features' nao esteja vazio.")
+        features = cfg.selected_features
+    else:
+        raise ValueError(f"Feature mode desconhecido: {cfg.feature_mode}")
+        
+    invalid_features = [f for f in features if f not in valid_names]
+    if invalid_features:
+        raise ValueError(f"Features invalidas/desconhecidas no registro: {invalid_features}")
+        
+    return list(features)
+
 
 
 def set_seed(seed: int) -> None:
@@ -251,30 +298,12 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
 
         df_feat = add_features(df_raw)
         
-        if cfg.target_mode == "log_returns":
-            target_col = "Log_Return"
-        elif cfg.target_mode == "raw_close":
-            target_col = "Close"
-        elif cfg.target_mode == "returns":
-            target_col = "Return"
-        else:
-            raise ValueError(f"Target mode desconhecido: {cfg.target_mode}")
-            
-        if cfg.feature_mode == "single":
-            feature_cols = [target_col]
-        elif cfg.feature_mode == "ohlcv":
-            feature_cols = ["Open", "High", "Low", "Close", "Volume"]
-        elif cfg.feature_mode == "ohlcv_returns":
-            feature_cols = ["Open", "High", "Low", "Close", "Volume", "Log_Return"]
-        elif cfg.feature_mode == "technical_features":
-            feature_cols = [
-                "Log_Return", "SMA_7", "SMA_21", "Volatility_21", "Momentum_5", "Range_Pct", "Volume_Z",
-                "RSI_14", "MACD", "MACD_Signal", "MACD_Hist", "BB_Width", "ATR_14",
-                "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5",
-                "Rolling_Return_5", "Rolling_Return_20", "Day_Of_Week", "Log_Volume"
-            ]
-        else:
-            raise ValueError(f"Feature mode desconhecido: {cfg.feature_mode}")
+        target_col = resolve_target_column(cfg.target_mode)
+        feature_cols = resolve_feature_columns(cfg, target_col)
+
+        missing_features = [f for f in feature_cols if f not in df_feat.columns]
+        if missing_features:
+            raise ValueError(f"Colunas de feature ausentes no DataFrame gerado: {missing_features}")
 
         mlflow.log_param("feature_cols", ",".join(feature_cols))
 
@@ -557,7 +586,11 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             "feature_cols": feature_cols,
             "target_col": target_col,
             "feature_mode": cfg.feature_mode,
-            "target_mode": cfg.target_mode
+            "target_mode": cfg.target_mode,
+            "selected_features": cfg.selected_features,
+            "feature_preset": cfg.feature_preset,
+            "feature_schema_version": "v1",
+            "feature_registry_version": "2026-05-19"
         }
         joblib.dump(preprocess, save_dir / "preprocessor.joblib")
 
@@ -574,6 +607,11 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             "train_shape": X_train.shape,
             "val_shape": X_val.shape,
             "test_shape": X_test.shape,
+            "selected_features": cfg.selected_features,
+            "feature_preset": cfg.feature_preset,
+            "feature_schema_version": "v1",
+            "feature_registry_version": "2026-05-19",
+            "feature_count": len(feature_cols),
         }
         
         write_json(save_dir / "metadata.json", metadata)
@@ -634,16 +672,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--target-mode", type=str, default="log_returns", choices=["log_returns", "raw_close", "returns"])
-    parser.add_argument("--feature-mode", type=str, default="single", choices=["single", "ohlcv", "ohlcv_returns", "technical_features"])
+    parser.add_argument(
+        "--feature-mode", 
+        type=str, 
+        default="single", 
+        choices=["single", "ohlcv", "ohlcv_returns", "technical_features", "custom"]
+    )
     parser.add_argument("--feature-scaler-type", type=str, default="standard", choices=["standard", "minmax", "robust"])
     parser.add_argument("--target-scaler-type", type=str, default="standard", choices=["standard", "minmax", "robust"])
     parser.add_argument("--grad-clip", type=float, default=1.0)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--selected-features", type=str, default=None, help="Lista de features separadas por virgula para o modo custom.")
+    parser.add_argument(
+        "--feature-preset", 
+        type=str, 
+        default=None, 
+        choices=["returns_basic", "returns_trend", "returns_volatility", "technical_complete"]
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    
+    selected = None
+    if args.selected_features:
+        selected = [f.strip() for f in args.selected_features.split(",") if f.strip()]
+
     cfg = TrainConfig(
         symbol=args.symbol,
         start_date=args.start_date,
@@ -667,6 +722,8 @@ def main() -> None:
         target_scaler_type=args.target_scaler_type,
         grad_clip=args.grad_clip,
         device=args.device,
+        selected_features=selected,
+        feature_preset=args.feature_preset,
     )
     run_training_pipeline(cfg, args.csv)
 
