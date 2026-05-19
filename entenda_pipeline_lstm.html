@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entenda o Pipeline LSTM — Tech Challenge Fase 4</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'loose' });
+  </script>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --ink: #18202f;
+      --muted: #667085;
+      --line: #d9e1ec;
+      --accent: #1455d9;
+      --accent-soft: #e8f0ff;
+      --good: #0f766e;
+      --warn: #a16207;
+      --danger: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    header {
+      padding: 44px 24px 28px;
+      background: linear-gradient(135deg, #101828, #1d4ed8);
+      color: #fff;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 56px;
+    }
+
+    h1, h2, h3 { line-height: 1.18; margin: 0; }
+    h1 { font-size: clamp(2rem, 4vw, 3.2rem); max-width: 980px; }
+    h2 { font-size: 1.45rem; margin-bottom: 14px; }
+    h3 { font-size: 1.05rem; margin-bottom: 8px; }
+    p { margin: 8px 0 0; }
+
+    .subtitle {
+      max-width: 820px;
+      margin-top: 14px;
+      color: #dbeafe;
+      font-size: 1.08rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(16, 24, 40, 0.06);
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: .82rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .muted { color: var(--muted); }
+    .strong { font-weight: 750; }
+
+    .mini-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .mini-list li { margin: 6px 0; }
+
+    code {
+      background: #eef2f7;
+      color: #111827;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: .92em;
+    }
+
+    .equation {
+      background: #101828;
+      color: #f9fafb;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+
+    .mermaid-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: .95rem;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { color: #344054; background: #f8fafc; }
+
+    .callout {
+      border-left: 5px solid var(--accent);
+      background: #f8fbff;
+      padding: 14px 16px;
+      border-radius: 12px;
+      margin-top: 12px;
+    }
+
+    .warn { border-left-color: var(--warn); background: #fffbeb; }
+    .good { border-left-color: var(--good); background: #ecfdf5; }
+    .danger { border-left-color: var(--danger); background: #fff1f0; }
+
+    footer {
+      max-width: 1120px;
+      margin: 0 auto 40px;
+      padding: 0 20px;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    @media (max-width: 860px) {
+      .span-4, .span-6, .span-8 { grid-column: span 12; }
+      header { padding-top: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Entenda o Pipeline LSTM do Tech Challenge</h1>
+    <p class="subtitle">Uma visão curta, visual e direta do que o projeto faz: dados históricos entram, a LSTM aprende padrões temporais e a API retorna o próximo fechamento previsto.</p>
+  </header>
+
+  <main>
+    <section class="grid">
+      <article class="card span-4">
+        <div class="tag">1 · Problema</div>
+        <h2>O que estamos tentando prever?</h2>
+        <p>O modelo tenta prever o <span class="strong">fechamento do próximo pregão</span> de uma ação, usando uma janela de valores anteriores.</p>
+        <div class="equation">últimos N pregões → LSTM → próximo fechamento</div>
+      </article>
+
+      <article class="card span-4">
+        <div class="tag">2 · Entrada</div>
+        <h2>O que vira X?</h2>
+        <p><code>X</code> é a janela temporal. Exemplo: se <code>window_size = 60</code>, o modelo recebe os últimos 60 passos da série.</p>
+        <p class="muted">No modo <code>single</code>, a API usa fechamentos e calcula retornos quando necessário.</p>
+      </article>
+
+      <article class="card span-4">
+        <div class="tag">3 · Alvo</div>
+        <h2>O que vira y?</h2>
+        <p><code>y</code> é o valor que o modelo aprende a prever. Pode ser preço bruto, retorno simples ou log-retorno.</p>
+        <p class="muted">No modo <code>log_returns</code>, o modelo prevê a variação logarítmica e depois reconverte para preço.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-12">
+        <div class="tag">Fluxo geral</div>
+        <h2>Pipeline completo</h2>
+        <div class="mermaid-box">
+          <pre class="mermaid">
+flowchart LR
+    A[Dados históricos<br/>yfinance ou CSV] --> B[Feature Engineering<br/>retornos, médias, RSI, MACD, ATR]
+    B --> C[Split temporal<br/>treino · validação · teste]
+    C --> D[Scaler fitado só no treino]
+    D --> E[Janelas temporais<br/>X e y]
+    E --> F[Modelo LSTM]
+    F --> G[Avaliação<br/>MAE · RMSE · MAPE]
+    G --> H[Comparação com baseline<br/>último fechamento]
+    H --> I[Artefatos<br/>ONNX · preprocessor · metrics]
+    I --> J[API FastAPI<br/>/predict]
+          </pre>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-6">
+        <div class="tag">Camadas</div>
+        <h2>Como o modelo está organizado</h2>
+        <div class="mermaid-box">
+          <pre class="mermaid">
+flowchart TD
+    A[Input<br/>batch × janela × features] --> B[LSTM<br/>aprende padrão temporal]
+    B --> C[Último timestep<br/>resumo da janela]
+    C --> D[LayerNorm<br/>estabiliza representação]
+    D --> E[Dropout<br/>reduz overfitting]
+    E --> F[Linear<br/>hidden_size → 1]
+    F --> G[Saída<br/>preço ou retorno previsto]
+          </pre>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <div class="tag">Treinamento</div>
+        <h2>O que acontece em cada época</h2>
+        <div class="mermaid-box">
+          <pre class="mermaid">
+flowchart TD
+    A[Modelo prevê ŷ] --> B[Loss MSE<br/>erro entre y e ŷ]
+    B --> C[Backpropagation<br/>calcula gradientes]
+    C --> D[AdamW<br/>atualiza pesos]
+    D --> E[Gradient Clipping<br/>evita explosão]
+    E --> F[Validação]
+    F --> G{val_loss melhorou?}
+    G -- sim --> H[Salva melhor estado]
+    G -- não --> I[Conta paciência]
+    I --> J[Early Stopping]
+          </pre>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-8">
+        <div class="tag">Componentes do código</div>
+        <h2>Mapa mental dos arquivos principais</h2>
+        <table>
+          <thead>
+            <tr><th>Arquivo</th><th>Papel</th><th>Ideia-chave</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>src/data_loader.py</code></td>
+              <td>Carrega dados e cria features.</td>
+              <td>Transforma OHLCV em sinais úteis: retornos, médias, RSI, MACD, ATR, volume etc.</td>
+            </tr>
+            <tr>
+              <td><code>src/model.py</code></td>
+              <td>Define a rede LSTM.</td>
+              <td>LSTM extrai padrão temporal; cabeça linear gera uma previsão.</td>
+            </tr>
+            <tr>
+              <td><code>src/train.py</code></td>
+              <td>Executa o treinamento.</td>
+              <td>Cria janelas, treina, valida, compara baseline e salva artefatos.</td>
+            </tr>
+            <tr>
+              <td><code>src/api.py</code></td>
+              <td>Serve o modelo treinado.</td>
+              <td>Carrega ONNX + preprocessador e responde <code>/predict</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="card span-4">
+        <div class="tag">Baseline</div>
+        <h2>Por que comparar?</h2>
+        <p>Em preço de ação, um chute forte é:</p>
+        <div class="equation">preço de amanhã = fechamento de hoje</div>
+        <p>Esse é o <span class="strong">baseline_last_close</span>. A LSTM precisa vencer essa regra simples para mostrar ganho real.</p>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-4">
+        <div class="tag">MAE</div>
+        <h2>Erro em reais</h2>
+        <p>Mostra quanto o modelo erra, em média, na escala do preço.</p>
+        <div class="equation">MAE = média(|real - previsto|)</div>
+      </article>
+
+      <article class="card span-4">
+        <div class="tag">RMSE</div>
+        <h2>Pune erros grandes</h2>
+        <p>Fica mais alto quando existem previsões muito ruins em alguns dias.</p>
+        <div class="equation">RMSE = raiz(média(erro²))</div>
+      </article>
+
+      <article class="card span-4">
+        <div class="tag">MAPE</div>
+        <h2>Erro percentual</h2>
+        <p>É a métrica mais fácil de explicar na apresentação.</p>
+        <div class="equation">MAPE 1,2% ≈ erro médio de 1,2%</div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-6">
+        <div class="tag">Sem vazamento</div>
+        <h2>Regra crítica do scaler</h2>
+        <div class="callout good">
+          <p><span class="strong">Certo:</span> dividir os dados no tempo, fitar o scaler no treino e só transformar validação/teste.</p>
+        </div>
+        <div class="callout danger">
+          <p><span class="strong">Errado:</span> fitar o scaler no dataset inteiro antes do split. Isso deixa o treino “ver” o futuro.</p>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <div class="tag">Atenção</div>
+        <h2>O ponto mais importante hoje</h2>
+        <div class="callout warn">
+          <p>A API simplificada aceita apenas <code>feature_mode="single"</code>. Modelos com <code>technical_features</code>, <code>ohlcv</code> ou <code>ohlcv_returns</code> são bons para experimento, mas não devem ser promovidos se o endpoint continuar recebendo só fechamentos.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="grid">
+      <article class="card span-12">
+        <div class="tag">Resumo para apresentar</div>
+        <h2>Explicação em 30 segundos</h2>
+        <p>O projeto usa uma rede LSTM para prever o fechamento do próximo pregão da PETR4. A entrada é uma janela temporal com pregões anteriores, e o alvo é o próximo fechamento ou sua variação. Os dados são divididos cronologicamente em treino, validação e teste, e a normalização é ajustada apenas no treino para evitar vazamento. O modelo é treinado com MSE, AdamW, early stopping e gradient clipping. A avaliação é feita em preço real usando MAE, RMSE e MAPE, sempre comparando contra o baseline de último fechamento.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    Arquivo de estudo inicial. Use este HTML como mapa visual; os detalhes de implementação ficam nos arquivos Python do projeto.
+  </footer>
+</body>
+</html>
