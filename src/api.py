@@ -58,6 +58,7 @@ if ENABLE_TRAINING_API:
 
 
 MODEL_DIR = Path(os.getenv("MODEL_DIR", "models/lstm_petr4"))
+MODEL_DIR_MULTI = Path(os.getenv("MODEL_DIR_MULTI", "models/lstm_petr4_multi"))
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_TEMPLATE = BASE_DIR / "dashboard.html"
 START_TIME = time.time()
@@ -251,10 +252,8 @@ if ENABLE_TRAINING_API:
 def sync_best_model_from_mlflow() -> None:
     """
     MLOps Automatic Promotion:
-    Busca em todas as runs de todas as experiencias do MLflow o modelo com o menor MAPE
-    no conjunto de VALIDAÇÃO (exclusivo para modelos univariados 'single' compatíveis com a API de produção)
-    e o promove como o modelo ativo (copiando seus artefatos para MODEL_DIR),
-    se for melhor do que o modelo atualmente em disco.
+    Sincroniza automaticamente o melhor modelo de tipo 'single' (univariado) para MODEL_DIR,
+    e o melhor modelo de tipo multivariado (qualquer outro feature_mode) para MODEL_DIR_MULTI.
     """
     if not ENABLE_TRAINING_API:
         return
@@ -264,34 +263,42 @@ def sync_best_model_from_mlflow() -> None:
         import shutil
         client = MlflowClient()
         experiments = client.search_experiments()
-        best_run = None
-        best_mape = float("inf")
+        
+        # Encontrar os melhores modelos no MLflow
+        best_run_single = None
+        best_mape_single = float("inf")
+        best_run_multi = None
+        best_mape_multi = float("inf")
 
         for exp in experiments:
             runs = client.search_runs(experiment_ids=[exp.experiment_id])
             for r in runs:
-                # Com o endpoint /predict/ohlcv habilitado, qualquer feature_mode pode ser promovido!
-                pass
-
-                # Prioriza a métrica de validação para a tomada de decisão
+                feature_mode = r.data.params.get("feature_mode", "single")
                 mape = (
                     r.data.metrics.get("val_lstm_mape_pct") or 
                     r.data.metrics.get("lstm_mape_pct") or
                     r.data.metrics.get("test_lstm_mape_pct")
                 )
                 if mape is not None and mape > 0:
-                    if mape < best_mape:
-                        best_mape = mape
-                        best_run = r
+                    if feature_mode == "single":
+                        if mape < best_mape_single:
+                            best_mape_single = mape
+                            best_run_single = r
+                    else:
+                        if mape < best_mape_multi:
+                            best_mape_multi = mape
+                            best_run_multi = r
 
-        if best_run is not None:
-            # Verifica o modelo atual no disco
+        # Função auxiliar para promover modelo para um diretório específico
+        def promote_to_dir(best_run, best_mape, target_dir, label):
+            if best_run is None:
+                return False
+            
             current_mape = float("inf")
-            metrics_path = MODEL_DIR / "metrics.json"
+            metrics_path = target_dir / "metrics.json"
             if metrics_path.exists():
                 try:
                     current_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-                    # Prioriza a métrica de validação do campeão atual
                     current_mape = (
                         current_metrics.get("lstm_val", {}).get("mape_pct") or
                         current_metrics.get("val_lstm_mape_pct") or
@@ -303,34 +310,40 @@ def sync_best_model_from_mlflow() -> None:
                 except Exception:
                     pass
 
-            # Se o modelo do MLflow for estritamente melhor (com margem de precisão), promove!
             if best_mape < (current_mape - 1e-6):
-                print(f"[MLOps] Novo Campeao detectado no MLflow (Run {best_run.info.run_id}) com Validation MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
-                
-                # Garante que MODEL_DIR existe
-                MODEL_DIR.mkdir(parents=True, exist_ok=True)
-                
-                # Baixa os artefatos da run
+                print(f"[MLOps] Novo Campeao {label} detectado no MLflow (Run {best_run.info.run_id}) com Validation MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
+                target_dir.mkdir(parents=True, exist_ok=True)
                 local_path = mlflow.artifacts.download_artifacts(run_id=best_run.info.run_id)
                 src_path = Path(local_path)
                 
-                # Copia os arquivos relevantes
                 copied_any = False
                 for filename in ["model.onnx", "model.pt", "model.safetensors", "preprocessor.joblib", "metadata.json", "metrics.json", "model_performance.png"]:
                     src_file = src_path / filename
                     if src_file.exists():
-                        shutil.copy(str(src_file), str(MODEL_DIR / filename))
+                        shutil.copy(str(src_file), str(target_dir / filename))
                         copied_any = True
                 
                 if copied_any:
-                    # Limpa caches da API
-                    load_preprocessor.cache_clear()
-                    load_predictor.cache_clear()
-                    print(f"[MLOps] Modelo do MLflow (Run {best_run.info.run_id}) promovido com sucesso para {MODEL_DIR}.")
+                    print(f"[MLOps] Modelo {label} do MLflow promovido com sucesso para {target_dir}.")
+                    return True
                 else:
-                    print(f"[MLOps] Aviso: Nenhum artefato copiado de {src_path}")
+                    print(f"[MLOps] Aviso: Nenhum artefato {label} copiado de {src_path}")
             else:
-                print(f"[MLOps] O modelo em disco ({current_mape:.4f}%) ja e o melhor ou empata com o melhor do MLflow ({best_mape:.4f}%)")
+                print(f"[MLOps] O modelo {label} em disco ({current_mape:.4f}%) ja e o melhor ou empata com o melhor do MLflow ({best_mape:.4f}%)")
+            return False
+
+        # Promove o modelo univariado
+        updated_single = promote_to_dir(best_run_single, best_mape_single, MODEL_DIR, "Univariado")
+        
+        # Promove o modelo multivariado
+        updated_multi = promote_to_dir(best_run_multi, best_mape_multi, MODEL_DIR_MULTI, "Multivariado")
+
+        if updated_single or updated_multi:
+            load_preprocessor.cache_clear()
+            load_predictor.cache_clear()
+            load_preprocessor_multi.cache_clear()
+            load_predictor_multi.cache_clear()
+            
     except Exception as e:
         print(f"[MLOps] Erro ao sincronizar melhor modelo do MLflow: {e}")
 
@@ -353,6 +366,24 @@ def load_predictor():
     model_path = MODEL_DIR / "model.onnx"
     if not model_path.exists():
         raise FileNotFoundError(f"Modelo ONNX nao encontrado: {model_path}. Execute o treinamento primeiro para gerar o arquivo ONNX.")
+
+    session = ort.InferenceSession(str(model_path))
+    return session
+
+
+@lru_cache(maxsize=1)
+def load_preprocessor_multi() -> dict:
+    path = MODEL_DIR_MULTI / "preprocessor.joblib"
+    if not path.exists():
+        raise FileNotFoundError(f"Preprocessador multivariado nao encontrado em {path}. Execute o treinamento com feature_mode multivariado primeiro.")
+    return joblib.load(path)
+
+
+@lru_cache(maxsize=1)
+def load_predictor_multi():
+    model_path = MODEL_DIR_MULTI / "model.onnx"
+    if not model_path.exists():
+        raise FileNotFoundError(f"Modelo ONNX multivariado nao encontrado em {model_path}. Execute o treinamento com feature_mode multivariado primeiro.")
 
     session = ort.InferenceSession(str(model_path))
     return session
@@ -443,8 +474,16 @@ def predict_next(closes_payload: List[float]) -> dict:
 
 
 def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
-    preprocessor = load_preprocessor()
-    session = load_predictor()
+    # 1. Carregar preprocessor e session. Se houver preprocessor multivariado, tenta ele primeiro.
+    preprocessor = None
+    session = None
+    try:
+        preprocessor = load_preprocessor_multi()
+        session = load_predictor_multi()
+    except Exception:
+        # Fallback para o modelo padrão (univariado)
+        preprocessor = load_preprocessor()
+        session = load_predictor()
 
     # 1. Converter para DataFrame
     df = pd.DataFrame(rows_payload)
@@ -592,12 +631,9 @@ async def collect_app_metrics(request, call_next):
             response.headers["X-Process-Time"] = f"{latency:.6f}"
 
 
-def model_card_payload() -> dict:
-    # MLOps: Garante que estamos exibindo e executando o melhor modelo do MLflow
-    sync_best_model_from_mlflow()
-
-    metadata_path = MODEL_DIR / "metadata.json"
-    metrics_path = MODEL_DIR / "metrics.json"
+def model_card_payload(model_dir: Path) -> dict:
+    metadata_path = model_dir / "metadata.json"
+    metrics_path = model_dir / "metrics.json"
     metadata = {}
     metrics = {}
     if metadata_path.exists():
@@ -606,17 +642,21 @@ def model_card_payload() -> dict:
         metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
 
     preprocessor = None
-    if (MODEL_DIR / "preprocessor.joblib").exists():
+    if (model_dir / "preprocessor.joblib").exists():
         try:
-            preprocessor = load_preprocessor()
+            if model_dir == MODEL_DIR_MULTI:
+                preprocessor = load_preprocessor_multi()
+            else:
+                preprocessor = load_preprocessor()
         except Exception:
             preprocessor = None
 
     # Carrega textos qualitativos de model_card_template.json se existir
     template_path = Path(__file__).resolve().parent / "model_card_template.json"
+    is_multi = (model_dir == MODEL_DIR_MULTI)
     text_defaults = {
-        "model_name": "StockLSTM",
-        "model_description": "Modelo Deep Learning baseado em LSTM configurável (Univariado/Multivariado) projetado para previsão de séries temporais de ativos financeiros.",
+        "model_name": "StockLSTM (Multivariado)" if is_multi else "StockLSTM (Univariado)",
+        "model_description": "Modelo Deep Learning baseado em LSTM configurável (Multivariado) projetado para previsão de séries temporais de ativos financeiros usando múltiplos indicadores de mercado." if is_multi else "Modelo Deep Learning baseado em LSTM configurável (Univariado) projetado para previsão de séries temporais de fechamento de ativos financeiros.",
         "intended_uses": "Auxílio à tomada de decisão em estratégias de trading de curto prazo (D+1) para a ação PETR4. Não recomendado para uso autônomo de alta frequência (HFT) sem supervisão humana.",
         "training_observations": "Modelo treinado com otimizador AdamW, decaimento de peso (weight decay) e parada antecipada (early stopping) baseada na perda do conjunto de validação. O processamento separa as escalas de feature/target usando Anchor Price.",
         "evaluation_dataset": "Split temporal Out-of-Time de 15% da base de dados histórica.",
@@ -629,13 +669,21 @@ def model_card_payload() -> dict:
         except Exception as e:
             print(f"[ModelCard] Erro ao ler template json: {e}")
 
+    # Garante a diferenciação pós-template para o nome do modelo
+    if is_multi:
+        if not text_defaults["model_name"].endswith(" (Multivariado)"):
+            text_defaults["model_name"] = text_defaults["model_name"] + " (Multivariado)"
+    else:
+        if not text_defaults["model_name"].endswith(" (Univariado)"):
+            text_defaults["model_name"] = text_defaults["model_name"] + " (Univariado)"
+
     # Monta a estrutura inspirada no AWS SageMaker Model Cards
     return {
         "model_overview": {
             "model_name": text_defaults["model_name"],
             "model_description": text_defaults["model_description"],
             "model_version": "1.0.0",
-            "model_status": "Approved" if (MODEL_DIR / "model.onnx").exists() else "Draft",
+            "model_status": "Approved" if (model_dir / "model.onnx").exists() else "Draft",
             "risk_rating": "Medium",
             "intended_uses": text_defaults["intended_uses"]
         },
@@ -643,7 +691,7 @@ def model_card_payload() -> dict:
             "symbol": metadata.get("symbol", "PETR4.SA"),
             "data_source": metadata.get("data_source", "yfinance"),
             "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size") or 60,
-            "feature_mode": metadata.get("feature_mode") or (preprocessor or {}).get("feature_mode") or "single",
+            "feature_mode": metadata.get("feature_mode") or (preprocessor or {}).get("feature_mode") or ("ohlcv" if is_multi else "single"),
             "target_mode": metadata.get("target_mode") or (preprocessor or {}).get("target_mode") or "log_returns",
             "feature_scaler_type": metadata.get("feature_scaler_type") or (preprocessor or {}).get("feature_scaler_type") or "standard",
             "target_scaler_type": metadata.get("target_scaler_type") or (preprocessor or {}).get("target_scaler_type") or "standard",
@@ -658,9 +706,9 @@ def model_card_payload() -> dict:
             "evaluation_dataset": text_defaults["evaluation_dataset"],
             "metrics": metrics,
             "artifacts_available": {
-                "model_onnx": (MODEL_DIR / "model.onnx").exists(),
-                "model_safetensors": (MODEL_DIR / "model.safetensors").exists(),
-                "preprocessor_joblib": (MODEL_DIR / "preprocessor.joblib").exists(),
+                "model_onnx": (model_dir / "model.onnx").exists(),
+                "model_safetensors": (model_dir / "model.safetensors").exists(),
+                "preprocessor_joblib": (model_dir / "preprocessor.joblib").exists(),
                 "metadata_json": metadata_path.exists(),
             }
         },
@@ -724,12 +772,17 @@ def home():
 @app.get(
     "/model-card",
     summary="Ficha Técnica (AWS SageMaker Model Card)",
-    description="Retorna a ficha técnica detalhada do modelo em formato JSON, estruturada no padrão do AWS SageMaker Model Cards (seções Model Overview, Training Details, Evaluation Details e Additional Information).",
+    description="Retorna a ficha técnica detalhada do modelo em formato JSON, estruturada no padrão do AWS SageMaker Model Cards (seções Model Overview, Training Details, Evaluation Details e Additional Information). Suporta os tipos 'single' ou 'multi'.",
     response_description="Payload formatado no padrão AWS SageMaker Model Cards contendo governança, parâmetros de treino, métricas de validação e limites de responsabilidade.",
     tags=["Monitoramento & Diagnóstico"]
 )
-def model_card():
-    return model_card_payload()
+def model_card(type: str = "single"):
+    # Garante sincronização das últimas runs antes de responder
+    sync_best_model_from_mlflow()
+    
+    if type == "multi":
+        return model_card_payload(MODEL_DIR_MULTI)
+    return model_card_payload(MODEL_DIR)
 
 
 @app.get(
@@ -739,8 +792,9 @@ def model_card():
     response_description="Arquivo de imagem PNG do gráfico de performance e curva de perdas.",
     tags=["Monitoramento & Diagnóstico"]
 )
-def get_model_image():
-    image_path = MODEL_DIR / "model_performance.png"
+def get_model_image(type: str = "single"):
+    target_dir = MODEL_DIR_MULTI if type == "multi" else MODEL_DIR
+    image_path = target_dir / "model_performance.png"
     if image_path.exists():
         return FileResponse(str(image_path), media_type="image/png")
     raise HTTPException(status_code=404, detail="Imagem não encontrada.")
@@ -827,6 +881,8 @@ def train_model(req: TrainRequest):
         # Limpa o cache da API para carregar o novo modelo automaticamente se ele foi promovido
         load_predictor.cache_clear()
         load_preprocessor.cache_clear()
+        load_predictor_multi.cache_clear()
+        load_preprocessor_multi.cache_clear()
         
         return {
             "status": "success", 

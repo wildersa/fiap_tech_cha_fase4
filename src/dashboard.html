@@ -590,6 +590,10 @@
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model Card</h2>
+          <div class="toggle-group" style="display: inline-flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px; gap: 4px;">
+            <button id="btn-mc-single" onclick="changeModelCardView('single')" style="background: var(--accent); color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Univariado (Single)</button>
+            <button id="btn-mc-multi" onclick="changeModelCardView('multi')" style="background: transparent; color: #a0aec0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Multivariado (Multi)</button>
+          </div>
           <span id="mc-risk-rating" class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium Risk</span>
         </div>
         <span class="status-badge" id="mc-status" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Verificando...</span>
@@ -985,6 +989,7 @@
     let chart = null;
     let resourceChart = null;
     let latencyChart = null;
+    let currentModelCardType = 'single';
     
     const ENABLE_TRAINING_API = __ENABLE_TRAINING_API__;
     if (!ENABLE_TRAINING_API) {
@@ -1172,9 +1177,30 @@
       }
     }
 
+    async function changeModelCardView(type) {
+      currentModelCardType = type;
+      
+      const btnSingle = document.getElementById('btn-mc-single');
+      const btnMulti = document.getElementById('btn-mc-multi');
+      
+      if (type === 'single') {
+        btnSingle.style.background = 'var(--accent)';
+        btnSingle.style.color = '#fff';
+        btnMulti.style.background = 'transparent';
+        btnMulti.style.color = '#a0aec0';
+      } else {
+        btnMulti.style.background = 'var(--accent)';
+        btnMulti.style.color = '#fff';
+        btnSingle.style.background = 'transparent';
+        btnSingle.style.color = '#a0aec0';
+      }
+      
+      await loadModelCard();
+    }
+
     async function loadModelCard() {
       try {
-        const res = await fetch('/model-card');
+        const res = await fetch(`/model-card?type=${currentModelCardType}`);
         const data = await res.json();
         
         const overview = data.model_overview || {};
@@ -1268,7 +1294,7 @@
         
         const imgEl = document.getElementById('mc-image');
         if (imgEl) {
-          imgEl.src = "/model-image?t=" + new Date().getTime();
+          imgEl.src = `/model-image?type=${currentModelCardType}&t=${new Date().getTime()}`;
           imgEl.style.display = 'block';
         }
 

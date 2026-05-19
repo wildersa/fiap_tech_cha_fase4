@@ -20,6 +20,8 @@ prometheus-fastapi-instrumentator = "^7.0.0"
 python-dotenv = "^1.2.2"
 onnxruntime = "^1.18.0"
 safetensors = "^0.7.0"
+
+[tool.poetry.group.train.dependencies]
 torch = { version = ">=2.2,<3.0", source = "pytorch-cu128" }
 yfinance = "^0.2.50"
 mlflow = "^3.0.0"

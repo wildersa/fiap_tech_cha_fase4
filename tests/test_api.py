@@ -43,6 +43,28 @@ def test_model_card_empty():
         assert response.status_code == 200
         assert response.json()["evaluation_details"]["artifacts_available"]["model_onnx"] is False
 
+def test_model_card_types():
+    with patch("src.api.MODEL_DIR", Path("/non/existent/single")), patch("src.api.MODEL_DIR_MULTI", Path("/non/existent/multi")):
+        response_single = client.get("/model-card?type=single")
+        assert response_single.status_code == 200
+        assert response_single.json()["model_overview"]["model_name"] == "StockLSTM (Univariado)"
+
+        response_multi = client.get("/model-card?type=multi")
+        assert response_multi.status_code == 200
+        assert response_multi.json()["model_overview"]["model_name"] == "StockLSTM (Multivariado)"
+
+        response_default = client.get("/model-card")
+        assert response_default.status_code == 200
+        assert response_default.json()["model_overview"]["model_name"] == "StockLSTM (Univariado)"
+
+def test_model_image_not_found():
+    with patch("src.api.MODEL_DIR", Path("/non/existent/single")), patch("src.api.MODEL_DIR_MULTI", Path("/non/existent/multi")):
+        response_single = client.get("/model-image?type=single")
+        assert response_single.status_code == 404
+
+        response_multi = client.get("/model-image?type=multi")
+        assert response_multi.status_code == 404
+
 @patch("src.api.load_preprocessor")
 @patch("src.api.load_predictor")
 def test_predict_success(mock_load_pred, mock_load_prep, mock_preprocessor):

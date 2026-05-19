@@ -22,9 +22,17 @@ models/
 
 ## Instalação (Poetry)
 
-O projeto gerencia dependências usando o **Poetry**. Para garantir a portabilidade total do pipeline de treinamento e MLOps para ambientes de produção, todas as bibliotecas necessárias para treinamento (`torch`, `mlflow`, `yfinance`, `matplotlib`, `onnx`, `onnxscript`) foram incorporadas no grupo de dependências principal.
+O projeto gerencia dependências usando o **Poetry**. Para garantir a portabilidade total e otimização do tamanho da imagem de produção, as dependências foram divididas:
+- **Dependências de Produção (Grupo Principal)**: Apenas o motor ONNX Runtime, FastAPI, Uvicorn, Pandas, Numpy, Scikit-Learn e Joblib para inferência rápida e leve.
+- **Dependências de Treinamento (Grupo `train`)**: Contém `torch` (PyTorch CUDA), `mlflow`, `yfinance`, `matplotlib`, `onnx` e `onnxscript`.
 
-Para instalar todo o ecossistema (API de inferência + treinamento + testes):
+Para instalar apenas a versão enxuta de produção (somente inferência):
+
+```bash
+poetry install --only main
+```
+
+Para instalar todo o ecossistema (API de inferência + pipeline de treinamento + testes):
 
 ```bash
 poetry install
@@ -35,8 +43,8 @@ poetry install
 O sistema de treinamento suporta **Múltiplos Modos Dinâmicos** de análise:
 
 - **Feature Modes**:
-  - `single` (Univariado): Utiliza apenas o preço de fechamento como entrada. **Este é o único modo de produção suportado pela API de inferência em tempo real e elegível para promoção automática.**
-  - `ohlcv`, `ohlcv_returns`, `technical_features` (Multivariados): **Modos puramente experimentais.** Permitem realizar testes avançados de arquiteturas de deep learning e logging completo de métricas no MLflow, porém não são promovidos automaticamente para produção de forma a evitar quebras de contrato com a API final.
+  - `single` (Univariado): Utiliza apenas o preço de fechamento como entrada. Pode ser consumido tanto no endpoint `/predict` quanto no novo endpoint multivariado `/predict/ohlcv`.
+  - `ohlcv`, `ohlcv_returns`, `technical_features`, `custom` (Multivariados): Calculam features a partir de dados históricos OHLCV completos. São totalmente suportados em produção através do novo endpoint `/predict/ohlcv`.
 - **Target Modes**: `log_returns` (recomendado) ou `raw_close`.
 
 ### Otimizador Avançado (AdamW)
@@ -45,11 +53,12 @@ Em vez de utilizar o Adam padrão, a rede é otimizada exclusivamente através d
 
 ### Champion / Challenger (Promoção Baseada em Validação)
 
-Sempre que um treinamento univariado (`feature_mode="single"`) é finalizado, o script compara o novo modelo (Challenger) com o modelo atualmente em produção (Champion) usando o **MAPE de Validação** (`metrics_val["mape_pct"]`).
+Sempre que qualquer pipeline de treinamento é finalizado, o script compara o novo modelo (Challenger) com o modelo atualmente em produção (Champion) usando o **MAPE de Validação** (`metrics_val["mape_pct"]`).
 
+- A promoção automática é totalmente **independente do `feature_mode`**. Modelos multivariados também são promovidos automaticamente para produção se obtiverem o menor MAPE de validação geral.
 - O conjunto de validação é a única métrica usada para guiar a seleção/promoção de modelos.
 - O conjunto de teste (`metrics_test`) permanece estritamente isolado para documentação final e model cards, garantindo que seja um verdadeiro "futuro não visto" e prevenindo vazamentos (*validation leakage*).
-- Se o novo modelo univariado obtiver um MAPE de validação menor, ele substituirá os arquivos da pasta `models/lstm_petr4` e se tornará o novo Campeão.
+- Se o novo modelo obtiver um MAPE de validação menor, ele substituirá os arquivos da pasta `models/lstm_petr4` e se tornará o novo Campeão.
 
 ### Interface Gráfica ou CLI
 
@@ -92,7 +101,8 @@ poetry run uvicorn src.api:app --reload
 ```
 
 - `GET /dashboard`: O coração visual do projeto! Tela para rodar inferências, treinar novos modelos, visualizar a Loss Curve, tabela ao vivo do MLflow e gráficos em tempo real.
-- `POST /predict`: Ponto de entrada de inferência (Recebe JSON de série histórica e retorna a previsão).
+- `POST /predict`: Ponto de entrada de inferência univariada (Recebe JSON com array de preços de fechamento e retorna a previsão). Disponível apenas se o modelo campeão atual for `feature_mode="single"`.
+- `POST /predict/ohlcv`: Novo ponto de entrada para inferência multivariada (Recebe JSON contendo linhas históricas com dados OHLCV completos: `date`, `open`, `high`, `low`, `close`, `volume`). Suporta qualquer tipo de modelo (univariado ou multivariado) ao calcular as features correspondentes dinamicamente.
 - `POST /train`: Dispara um fluxo de treinamento em Background diretamente da API.
 - `GET /model-card` & `/runs`: Resumos técnicos das arquiteturas e do MLflow para consumo do Frontend.
 - `GET /telemetry`: Retorna as métricas de latência, CPU e RAM que abastecem os gráficos da interface.
