@@ -209,6 +209,7 @@ def sync_best_model_from_mlflow() -> None:
     """
     MLOps Automatic Promotion:
     Busca em todas as runs de todas as experiencias do MLflow o modelo com o menor MAPE
+    no conjunto de VALIDAÇÃO (exclusivo para modelos univariados 'single' compatíveis com a API de produção)
     e o promove como o modelo ativo (copiando seus artefatos para MODEL_DIR),
     se for melhor do que o modelo atualmente em disco.
     """
@@ -226,11 +227,16 @@ def sync_best_model_from_mlflow() -> None:
         for exp in experiments:
             runs = client.search_runs(experiment_ids=[exp.experiment_id])
             for r in runs:
-                # Tenta obter a métrica de teste ou validação
+                # Impede promoção automática de modelos multivariados/experimentais
+                feature_mode = r.data.params.get("feature_mode", "single")
+                if feature_mode != "single":
+                    continue
+
+                # Prioriza a métrica de validação para a tomada de decisão
                 mape = (
-                    r.data.metrics.get("lstm_mape_pct") or 
-                    r.data.metrics.get("test_lstm_mape_pct") or 
-                    r.data.metrics.get("test_lstm_mape")
+                    r.data.metrics.get("val_lstm_mape_pct") or 
+                    r.data.metrics.get("lstm_mape_pct") or
+                    r.data.metrics.get("test_lstm_mape_pct")
                 )
                 if mape is not None and mape > 0:
                     if mape < best_mape:
@@ -244,7 +250,10 @@ def sync_best_model_from_mlflow() -> None:
             if metrics_path.exists():
                 try:
                     current_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+                    # Prioriza a métrica de validação do campeão atual
                     current_mape = (
+                        current_metrics.get("lstm_val", {}).get("mape_pct") or
+                        current_metrics.get("val_lstm_mape_pct") or
                         current_metrics.get("lstm_test", {}).get("mape_pct") or
                         current_metrics.get("test_lstm_mape_pct") or
                         current_metrics.get("lstm_mape_pct") or
@@ -253,9 +262,9 @@ def sync_best_model_from_mlflow() -> None:
                 except Exception:
                     pass
 
-            # Se o modelo do MLflow for estritamente melhor (com margem de precisão para evitar float inaccuracies), promove!
+            # Se o modelo do MLflow for estritamente melhor (com margem de precisão), promove!
             if best_mape < (current_mape - 1e-6):
-                print(f"[MLOps] Novo Campeao detectado no MLflow (Run {best_run.info.run_id}) com MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
+                print(f"[MLOps] Novo Campeao detectado no MLflow (Run {best_run.info.run_id}) com Validation MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
                 
                 # Garante que MODEL_DIR existe
                 MODEL_DIR.mkdir(parents=True, exist_ok=True)

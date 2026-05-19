@@ -486,20 +486,33 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
 
         # MLOps: Champion/Challenger Promotion Evaluation
         is_better = True
+        
+        # 1. Impede promoção automática de modelos multivariados/experimentais para não quebrar a API univariada
+        if cfg.feature_mode != "single":
+            print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos univariados (single) sao elegiveis para promocao automatica na producao.")
+            is_better = False
+        
         champion_mape = None
         champion_metadata_path = output_dir / "metadata.json"
         champion_metrics_path = output_dir / "metrics.json"
 
-        if champion_metadata_path.exists() and champion_metrics_path.exists():
+        if is_better and champion_metadata_path.exists() and champion_metrics_path.exists():
             try:
                 champ_metrics = json.loads(champion_metrics_path.read_text(encoding="utf-8"))
-                champion_mape = champ_metrics.get("lstm_test", {}).get("mape_pct")
+                # Prioriza o MAPE de validação para comparação de promoção
+                champion_mape = (
+                    champ_metrics.get("lstm_val", {}).get("mape_pct") or
+                    champ_metrics.get("val_lstm_mape_pct") or
+                    champ_metrics.get("lstm_test", {}).get("mape_pct") or
+                    champ_metrics.get("test_lstm_mape_pct")
+                )
                 if champion_mape is not None:
-                    print(f"Modelo atual na producao (Champion) possui MAPE: {champion_mape:.2f}%")
-                    if metrics_test["mape_pct"] < champion_mape:
-                        print(f"[Promocao Aprovada] O novo modelo superou o atual ({metrics_test['mape_pct']:.2f}% < {champion_mape:.2f}%).")
+                    val_mape = metrics_val["mape_pct"]
+                    print(f"Modelo atual na producao (Champion) possui Validation MAPE: {champion_mape:.2f}%")
+                    if val_mape < champion_mape:
+                        print(f"[Promocao Aprovada] O novo modelo superou o atual no conjunto de validacao ({val_mape:.2f}% < {champion_mape:.2f}%).")
                     else:
-                        print(f"[Promocao Rejeitada] O novo modelo nao superou o atual ({metrics_test['mape_pct']:.2f}% >= {champion_mape:.2f}%).")
+                        print(f"[Promocao Rejeitada] O novo modelo nao superou o atual no conjunto de validacao ({val_mape:.2f}% >= {champion_mape:.2f}%).")
                         is_better = False
             except Exception as e:
                 print(f"Falha ao avaliar Champion atual: {e}. Sobrescrevendo...")

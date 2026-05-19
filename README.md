@@ -22,35 +22,35 @@ models/
 
 ## Instalação (Poetry)
 
-O projeto gerencia dependências inteligentemente usando o **Poetry**.
+O projeto gerencia dependências usando o **Poetry**. Para garantir a portabilidade total do pipeline de treinamento e MLOps para ambientes de produção, todas as bibliotecas necessárias para treinamento (`torch`, `mlflow`, `yfinance`, `matplotlib`, `onnx`, `onnxscript`) foram incorporadas no grupo de dependências principal.
 
-Para Desenvolvimento / Treinamento (Instala todo o ecossistema de Deep Learning):
+Para instalar todo o ecossistema (API de inferência + treinamento + testes):
 ```bash
 poetry install
 ```
 
-Para Produção / Serverless (Apenas dependências de inferência como FastAPI e ONNX):
-```bash
-poetry install --only main
-```
-
 ## Pipeline de Treinamento e MLOps
 
-O sistema de treinamento foi refatorado para suportar **Múltiplos Modos Dinâmicos**:
-- **Feature Modes**: `single` (apenas target), `ohlcv`, `ohlcv_returns`, `technical_features`.
+O sistema de treinamento suporta **Múltiplos Modos Dinâmicos** de análise:
+- **Feature Modes**: 
+  - `single` (Univariado): Utiliza apenas o preço de fechamento como entrada. **Este é o único modo de produção suportado pela API de inferência em tempo real e elegível para promoção automática.**
+  - `ohlcv`, `ohlcv_returns`, `technical_features` (Multivariados): **Modos puramente experimentais.** Permitem realizar testes avançados de arquiteturas de deep learning e logging completo de métricas no MLflow, porém não são promovidos automaticamente para produção de forma a evitar quebras de contrato com a API final.
 - **Target Modes**: `log_returns` (recomendado) ou `raw_close`.
 
 ### Otimizador Avançado (AdamW)
 Em vez de utilizar o Adam padrão, a rede é otimizada exclusivamente através do **AdamW**. Esta decisão arquitetural visa desacoplar o decaimento de pesos (L2 regularization) da atualização do gradiente de momento, prevenindo overfittings abruptos e garantindo uma generalização matemática muito superior ao prever o ruído estocástico das ações da Petrobras.
 
-### Champion / Challenger (Promoção Automática)
-Sempre que um treinamento é finalizado, o script compara o novo modelo (Challenger) com o modelo atualmente em produção (Champion). Se o novo modelo obtiver um `MAPE` menor na base de teste, ele substituirá os arquivos da pasta `models/lstm_petr4` e se tornará o novo Campeão.
+### Champion / Challenger (Promoção Baseada em Validação)
+Sempre que um treinamento univariado (`feature_mode="single"`) é finalizado, o script compara o novo modelo (Challenger) com o modelo atualmente em produção (Champion) usando o **MAPE de Validação** (`metrics_val["mape_pct"]`).
+- O conjunto de validação é a única métrica usada para guiar a seleção/promoção de modelos.
+- O conjunto de teste (`metrics_test`) permanece estritamente isolado para documentação final e model cards, garantindo que seja um verdadeiro "futuro não visto" e prevenindo vazamentos (*validation leakage*).
+- Se o novo modelo univariado obtiver um MAPE de validação menor, ele substituirá os arquivos da pasta `models/lstm_petr4` e se tornará o novo Campeão.
 
 ### Interface Gráfica ou CLI
-Você pode treinar o modelo diretamente pela interface web (`/dashboard` -> Aba Treino) ou executar o script automatizado de Grid Search, que iterará sobre um roteiro de testes e registrará tudo no MLflow:
+Você pode treinar o modelo diretamente pela interface web (`/dashboard` -> Aba Treino) ou executar o script de sintonia fina/busca de hiperparâmetros, registrando tudo no banco local do MLflow:
 
 ```bash
-poetry run python scripts/run_experiments.py
+$env:PYTHONPATH="." ; poetry run python src/tune.py --n-trials 5 --max-epochs 30
 ```
 
 *Para visualizar os resultados no MLflow UI:*

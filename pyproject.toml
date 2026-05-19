@@ -20,6 +20,12 @@ prometheus-fastapi-instrumentator = "^7.0.0"
 python-dotenv = "^1.2.2"
 onnxruntime = "^1.18.0"
 safetensors = "^0.7.0"
+torch = { version = ">=2.2,<3.0", source = "pytorch-cu128" }
+yfinance = "^0.2.50"
+mlflow = "^3.0.0"
+matplotlib = "^3.9.0"
+onnx = "^1.21.0"
+onnxscript = "^0.7.0"
 
 [[tool.poetry.source]]
 name = "pytorch-cu128"
@@ -29,13 +35,7 @@ priority = "explicit"
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3,<10.0"
 ipykernel = "^7.2.0"
-torch = { version = ">=2.2,<3.0", source = "pytorch-cu128" }
-yfinance = "^0.2.50"
-mlflow = "^3.0.0"
-matplotlib = "^3.9.0"
-onnx = "^1.21.0"
 httpx = "^0.28.1"
-onnxscript = "^0.7.0"
 
 
 [build-system]

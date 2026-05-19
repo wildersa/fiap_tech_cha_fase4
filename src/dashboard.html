@@ -817,12 +817,12 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Feature Mode <span class="tooltip-icon" data-tooltip="Variáveis preditivas da rede. 'single' usa apenas o target.">?</span></label>
+            <label>Feature Mode <span class="tooltip-icon" data-tooltip="Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.">?</span></label>
             <select id="train-feature">
-              <option value="single">single (Recomendado)</option>
-              <option value="ohlcv">ohlcv</option>
-              <option value="ohlcv_returns">ohlcv_returns</option>
-              <option value="technical_features">technical_features</option>
+              <option value="single">single (Univariado - Produção)</option>
+              <option value="ohlcv">ohlcv (Multivariado - Experimental)</option>
+              <option value="ohlcv_returns">ohlcv_returns (Multivariado - Experimental)</option>
+              <option value="technical_features">technical_features (Multivariado - Experimental)</option>
             </select>
           </div>
           <div class="form-group">
