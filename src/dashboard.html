@@ -582,49 +582,120 @@
           <div class="card"><span>Saída</span><strong>Preço Previsto</strong></div>
         </div>
       </div>
-      <div class="panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h2 style="margin: 0;">Model Card (Produção)</h2>
-          <span class="status-badge" id="mc-status" style="padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">Verificando...</span>
+      <div class="panel" style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 style="margin: 0; font-size: 14px;">AWS SageMaker Model Card</h2>
+            <span id="mc-risk-rating" class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">Medium Risk</span>
+          </div>
+          <span class="status-badge" id="mc-status">Verificando...</span>
         </div>
-        <p class="muted">Detalhes técnicos do modelo carregado em memória e ativo para inferência da API.</p>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 16px; margin-top: 12px;">
-          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-            <span style="font-size: 9px; text-transform: uppercase;">Ativo / Ticker</span>
-            <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+
+        <!-- Seção 1: Model Overview -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
+          <h3 style="font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px;">📋</span> 1. Model Overview
+          </h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px;">
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome do Modelo</span>
+              <strong id="mc-name" style="font-size: 13px; color: #fff;">-</strong>
+            </div>
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Versão</span>
+              <strong id="mc-version" style="font-size: 13px; color: #fff;">-</strong>
+            </div>
           </div>
-          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-            <span style="font-size: 9px; text-transform: uppercase;">Arquitetura Base</span>
-            <strong id="mc-type" style="font-size: 13px;">-</strong>
+          <div style="margin-bottom: 10px;">
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Descrição</span>
+            <p id="mc-description" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
           </div>
-          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-            <span style="font-size: 9px; text-transform: uppercase;">Window Size</span>
-            <strong id="mc-window" style="font-size: 13px;">-</strong>
-          </div>
-          <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-            <span style="font-size: 9px; text-transform: uppercase;">Target Mode</span>
-            <strong id="mc-target" style="font-size: 13px;">-</strong>
+          <div>
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Intended Uses (Uso Recomendado)</span>
+            <p id="mc-intended-uses" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1; font-style: italic;">-</p>
           </div>
         </div>
 
-        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Performance no Teste (Offline)</h3>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
-          <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--primary); font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--primary); font-size: 13px;">-</strong></div>
+        <!-- Seção 2: Training Details -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
+          <h3 style="font-size: 11px; color: var(--primary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px;">🏋️‍♂️</span> 2. Training Details
+          </h3>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 10px;">
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>Ticker</span>
+              <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>Lookback Window</span>
+              <strong id="mc-window" style="font-size: 13px;">-</strong>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>Target Mode</span>
+              <strong id="mc-target" style="font-size: 13px;">-</strong>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>Feature Mode</span>
+              <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>Data Source</span>
+              <strong id="mc-data-source" style="font-size: 13px;">-</strong>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+              <span>MLflow Run ID</span>
+              <strong id="mc-run-id" style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
+            </div>
+          </div>
+          <div>
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Observações de Treino</span>
+            <p id="mc-observations" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+          </div>
         </div>
 
-        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Contrato da API</h3>
-        <ul style="color: var(--text); font-size: 11px; line-height: 1.4; background: rgba(0,0,0,0.15); padding: 10px 12px 10px 24px; border-radius: 6px; border: 1px solid var(--panel-border); margin: 0; margin-bottom: 16px;">
-          <li style="margin-bottom: 4px;"><strong>Input (Payload):</strong> <span id="mc-input" class="muted">-</span></li>
-          <li><strong>Output (Response):</strong> <span id="mc-output" class="muted">-</span></li>
-        </ul>
-        
-        <h3 style="font-size: 11px; margin-top: 0; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; margin-bottom: 10px; font-weight: 700; letter-spacing: 0.5px;">Gráfico de Avaliação (Treino)</h3>
-        <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; margin-bottom: 16px; text-align: center;">
-          <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
+        <!-- Seção 3: Evaluation Details -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
+          <h3 style="font-size: 11px; color: var(--success); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px;">📊</span> 3. Evaluation Details
+          </h3>
+          <div style="margin-bottom: 10px;">
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dataset de Teste</span>
+            <p id="mc-eval-dataset" style="font-size: 12px; margin: 0; color: #cbd5e1; font-weight: 500;">-</p>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+            <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--success); font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--success); font-size: 13px;">-</strong></div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+            <span class="muted" style="font-size: 9px; text-transform: uppercase;">Status dos Artefatos:</span>
+            <span id="mc-art-onnx" class="status-badge" style="font-size: 9px;">ONNX</span>
+            <span id="mc-art-safetensors" class="status-badge" style="font-size: 9px;">Safetensors</span>
+            <span id="mc-art-preproc" class="status-badge" style="font-size: 9px;">Preprocessor</span>
+            <span id="mc-art-meta" class="status-badge" style="font-size: 9px;">Metadata</span>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; text-align: center;">
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 8px; text-align: left;">Gráfico de Avaliação (Treino)</span>
+            <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
+          </div>
+        </div>
+
+        <!-- Seção 4: Additional Information -->
+        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
+          <h3 style="font-size: 11px; color: #f59e0b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px;">⚠️</span> 4. Additional Information
+          </h3>
+          <div style="margin-bottom: 10px;">
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Considerações Éticas e Responsabilidade</span>
+            <p id="mc-ethical" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+          </div>
+          <div>
+            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Limitações e Recomendações (Caveats)</span>
+            <p id="mc-caveats" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+          </div>
         </div>
       </div>
     </section>
@@ -1031,40 +1102,95 @@
         const res = await fetch('/model-card');
         const data = await res.json();
         
-        const isLoaded = data.artifacts_available && data.artifacts_available.model && data.artifacts_available.preprocessor;
+        const overview = data.model_overview || {};
+        const training = data.training_details || {};
+        const evaluation = data.evaluation_details || {};
+        const additional = data.additional_information || {};
+
+        const art = evaluation.artifacts_available || {};
+        const isLoaded = art.model_onnx && art.preprocessor_joblib;
         const statusBadge = document.getElementById('mc-status');
-        if (isLoaded) {
-          statusBadge.textContent = 'ONLINE (Ativo)';
-          statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-          statusBadge.style.color = '#10b981';
-          statusBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-        } else {
-          statusBadge.textContent = 'OFFLINE (Faltam Artefatos)';
-          statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
-          statusBadge.style.color = '#ef4444';
-          statusBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+        if (statusBadge) {
+          if (isLoaded) {
+            statusBadge.textContent = 'ONLINE (' + (overview.model_status || 'Approved') + ')';
+            statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+            statusBadge.style.color = '#10b981';
+            statusBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          } else {
+            statusBadge.textContent = 'OFFLINE (Faltam Artefatos)';
+            statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+            statusBadge.style.color = '#ef4444';
+            statusBadge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+          }
         }
 
-        document.getElementById('mc-symbol').textContent = data.symbol || '-';
-        document.getElementById('mc-type').textContent = data.model_type || '-';
-        document.getElementById('mc-window').textContent = data.window_size ? data.window_size + ' dias' : '-';
-        document.getElementById('mc-target').textContent = data.target || '-';
+        const updateArtBadge = (id, exists) => {
+          const badge = document.getElementById(id);
+          if (badge) {
+            if (exists) {
+              badge.style.background = 'rgba(16, 185, 129, 0.15)';
+              badge.style.color = '#10b981';
+              badge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+            } else {
+              badge.style.background = 'rgba(239, 68, 68, 0.15)';
+              badge.style.color = '#ef4444';
+              badge.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+            }
+          }
+        };
+        updateArtBadge('mc-art-onnx', art.model_onnx);
+        updateArtBadge('mc-art-safetensors', art.model_safetensors);
+        updateArtBadge('mc-art-preproc', art.preprocessor_joblib);
+        updateArtBadge('mc-art-meta', art.metadata_json);
 
-        if (data.metrics && data.metrics.lstm_test) {
-          document.getElementById('mc-mape').textContent = data.metrics.lstm_test.mape_pct.toFixed(2) + '%';
-          document.getElementById('mc-mae').textContent = data.metrics.lstm_test.mae.toFixed(2);
-          document.getElementById('mc-rmse').textContent = data.metrics.lstm_test.rmse.toFixed(2);
-          document.getElementById('mc-dir').textContent = (data.metrics.directional_accuracy_test_lstm_pct || 0).toFixed(1) + '%';
+        document.getElementById('mc-name').textContent = overview.model_name || '-';
+        document.getElementById('mc-version').textContent = overview.model_version || '-';
+        document.getElementById('mc-description').textContent = overview.model_description || '-';
+        document.getElementById('mc-intended-uses').textContent = overview.intended_uses || '-';
+        
+        const riskRating = document.getElementById('mc-risk-rating');
+        if (riskRating && overview.risk_rating) {
+          riskRating.textContent = overview.risk_rating + ' Risk';
+          if (overview.risk_rating.toLowerCase() === 'high') {
+            riskRating.style.background = 'rgba(239, 68, 68, 0.15)';
+            riskRating.style.color = '#ef4444';
+            riskRating.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+          } else if (overview.risk_rating.toLowerCase() === 'medium') {
+            riskRating.style.background = 'rgba(245, 158, 11, 0.15)';
+            riskRating.style.color = '#f59e0b';
+            riskRating.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+          } else {
+            riskRating.style.background = 'rgba(16, 185, 129, 0.15)';
+            riskRating.style.color = '#10b981';
+            riskRating.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+          }
+        }
+
+        document.getElementById('mc-symbol').textContent = training.symbol || '-';
+        document.getElementById('mc-window').textContent = training.window_size ? training.window_size + ' dias' : '-';
+        document.getElementById('mc-target').textContent = training.target_mode || '-';
+        document.getElementById('mc-feature-mode').textContent = training.feature_mode || '-';
+        document.getElementById('mc-data-source').textContent = training.data_source || '-';
+        document.getElementById('mc-run-id').textContent = training.mlflow_run_id || '-';
+        document.getElementById('mc-observations').textContent = training.training_observations || '-';
+
+        document.getElementById('mc-eval-dataset').textContent = evaluation.evaluation_dataset || '-';
+        
+        const evalMetrics = evaluation.metrics || {};
+        if (evalMetrics && evalMetrics.lstm_test) {
+          document.getElementById('mc-mape').textContent = evalMetrics.lstm_test.mape_pct.toFixed(2) + '%';
+          document.getElementById('mc-mae').textContent = evalMetrics.lstm_test.mae.toFixed(2);
+          document.getElementById('mc-rmse').textContent = evalMetrics.lstm_test.rmse.toFixed(2);
+          document.getElementById('mc-dir').textContent = (evalMetrics.directional_accuracy_test_lstm_pct || 0).toFixed(1) + '%';
         } else {
           ['mc-mape', 'mc-mae', 'mc-rmse', 'mc-dir'].forEach(id => document.getElementById(id).textContent = '-');
         }
 
-        document.getElementById('mc-input').textContent = data.input;
-        document.getElementById('mc-output').textContent = data.output;
+        document.getElementById('mc-ethical').textContent = additional.ethical_considerations || '-';
+        document.getElementById('mc-caveats').textContent = additional.caveats_and_recommendations || '-';
         
-        // Força atualização da imagem burlando o cache
         const imgEl = document.getElementById('mc-image');
-        if(imgEl) {
+        if (imgEl) {
           imgEl.src = "/model-image?t=" + new Date().getTime();
           imgEl.style.display = 'block';
         }

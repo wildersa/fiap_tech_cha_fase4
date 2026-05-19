@@ -367,21 +367,39 @@ def model_card_payload() -> dict:
         except Exception:
             preprocessor = None
 
+    # Monta a estrutura inspirada no AWS SageMaker Model Cards
     return {
-        "model_type": "LSTM Multivariada (v8)",
-        "input": "Lista cronológica de preços (Close, Open, High, Low) e indicadores calculados automaticamente pela API.",
-        "target": metadata.get("target_mode", "N/A"),
-        "output": "Preço de fechamento projetado e variação percentual / absoluta.",
-        "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size"),
-        "symbol": metadata.get("symbol", "PETR4.SA"),
-        "run_id": metadata.get("run_id", "Local / Sem MLflow"),
-        "metrics": metrics,
-        "artifacts_available": {
-            "model": (MODEL_DIR / "model.onnx").exists(),
-            "model_onnx": (MODEL_DIR / "model.onnx").exists(),
-            "preprocessor": (MODEL_DIR / "preprocessor.joblib").exists(),
-            "metadata": metadata_path.exists(),
+        "model_overview": {
+            "model_name": "StockLSTM",
+            "model_description": "Modelo Deep Learning baseado em LSTM configurável (Univariado/Multivariado) projetado para previsão de séries temporais de ativos financeiros.",
+            "model_version": "1.0.0",
+            "model_status": "Approved" if (MODEL_DIR / "model.onnx").exists() else "Draft",
+            "risk_rating": "Medium",
+            "intended_uses": "Auxílio à tomada de decisão em estratégias de trading de curto prazo (D+1) para a ação PETR4. Não recomendado para uso autônomo de alta frequência (HFT) sem supervisão humana."
         },
+        "training_details": {
+            "symbol": metadata.get("symbol", "PETR4.SA"),
+            "data_source": metadata.get("data_source", "yfinance"),
+            "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size") or 60,
+            "feature_mode": metadata.get("feature_mode") or (preprocessor or {}).get("feature_mode") or "single",
+            "target_mode": metadata.get("target_mode") or (preprocessor or {}).get("target_mode") or "log_returns",
+            "mlflow_run_id": metadata.get("run_id", "Treinamento Local / Sem Run ID"),
+            "training_observations": "Modelo treinado com otimizador AdamW, decaimento de peso (weight decay) e parada antecipada (early stopping) baseada na perda do conjunto de validação. O processamento separa as escalas de feature/target usando Anchor Price."
+        },
+        "evaluation_details": {
+            "evaluation_dataset": "Split temporal Out-of-Time de 15% da base de dados histórica.",
+            "metrics": metrics,
+            "artifacts_available": {
+                "model_onnx": (MODEL_DIR / "model.onnx").exists(),
+                "model_safetensors": (MODEL_DIR / "model.safetensors").exists(),
+                "preprocessor_joblib": (MODEL_DIR / "preprocessor.joblib").exists(),
+                "metadata_json": metadata_path.exists(),
+            }
+        },
+        "additional_information": {
+            "ethical_considerations": "Este modelo foi criado exclusivamente para fins acadêmicos (Tech Challenge FIAP) e não constitui conselho financeiro ou indicação de compra/venda.",
+            "caveats_and_recommendations": "O modelo assume estabilidade relativa do mercado. Eventos de cisne negro (black swan), crises geopolíticas extremas ou alterações corporativas bruscas invalidam as previsões temporais devido ao conceito de Data Drift."
+        }
     }
 
 

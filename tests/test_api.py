@@ -41,7 +41,7 @@ def test_model_card_empty():
     with patch("src.api.MODEL_DIR", Path("/non/existent")):
         response = client.get("/model-card")
         assert response.status_code == 200
-        assert response.json()["artifacts_available"]["model"] is False
+        assert response.json()["evaluation_details"]["artifacts_available"]["model_onnx"] is False
 
 @patch("src.api.load_preprocessor")
 @patch("src.api.load_predictor")
