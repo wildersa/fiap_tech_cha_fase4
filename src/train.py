@@ -230,7 +230,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         csv_path = os.getenv("DATA_CSV_PATH") or None
 
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
-    if not mlflow_uri.startswith(("file://", "http://", "https://")):
+    if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
         if not mlflow_path.is_absolute():
             mlflow_path = Path(__file__).resolve().parent.parent / mlflow_path
@@ -239,7 +239,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
 
     mlflow.set_experiment("stock_lstm_hypersearch")
     
-    with mlflow.start_run(run_name=f"{cfg.symbol}_{cfg.feature_mode}_{cfg.target_mode}") as run:
+    with mlflow.start_run(run_name=f"{cfg.symbol}_{cfg.feature_mode}_{cfg.target_mode}", nested=True) as run:
         if cfg.parent_run_id:
             mlflow.set_tag("mlflow.parentRunId", cfg.parent_run_id)
             mlflow.set_tag("derived_from", cfg.parent_run_id)

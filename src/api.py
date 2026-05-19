@@ -197,7 +197,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_sch
 # Garantir que a API aponte para o MLflow correto localmente
 if ENABLE_TRAINING_API:
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
-    if not mlflow_uri.startswith(("file://", "http://", "https://")):
+    if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
         if not mlflow_path.is_absolute():
             mlflow_path = Path(__file__).resolve().parent.parent / mlflow_path
