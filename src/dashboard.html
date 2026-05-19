@@ -571,132 +571,151 @@
         Modelo ativo | Ativo: <code>__MODEL_DIR__</code>
       </div>
 
-    <section id="home" class="home-grid">
+    <section id="home" style="display: flex; flex-direction: column; gap: 20px;">
+      <!-- Banner Superior: Arquitetura do Modelo -->
       <div class="panel">
-        <h2>Arquitetura do Modelo</h2>
-        <p>Esta API utiliza uma rede neural LSTM avançada, projetada para extrair padrões temporais de séries financeiras. O pipeline multivariado (V8) processa preços e injeta indicadores estacionários para maximizar a assertividade.</p>
-        <p>No momento da inferência, o usuário envia os fechamentos recentes. A API normaliza os dados usando a abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e decodifica a previsão para o próximo preço de fechamento.</p>
-        <div class="cards">
-          <div class="card"><span>Entrada</span><strong>Série OHLCV</strong></div>
-          <div class="card"><span>Alvo</span><strong>Target Ratio</strong></div>
-          <div class="card"><span>Saída</span><strong>Preço Previsto</strong></div>
+        <h2 style="margin-top: 0; margin-bottom: 8px; font-size: 16px;">Arquitetura do Modelo</h2>
+        <p style="margin: 0 0 12px 0; line-height: 1.4; color: #cbd5e1; font-size: 13px;">
+          Esta API utiliza uma rede neural LSTM avançada, projetada para extrair padrões temporais de séries financeiras. O pipeline multivariado (V8) processa preços e injeta indicadores estacionários para maximizar a assertividade.
+          No momento da inferência, o usuário envia os fechamentos recentes. A API normaliza os dados usando a abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e decodifica a previsão para o próximo preço de fechamento.
+        </p>
+        <div class="cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div class="card" style="padding: 8px 10px;"><span>Entrada</span><strong>Série OHLCV</strong></div>
+          <div class="card" style="padding: 8px 10px;"><span>Alvo</span><strong>Target Ratio</strong></div>
+          <div class="card" style="padding: 8px 10px;"><span>Saída</span><strong>Preço Previsto</strong></div>
         </div>
       </div>
-      <div class="panel" style="display: flex; flex-direction: column; gap: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 12px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="margin: 0; font-size: 14px;">AWS SageMaker Model Card</h2>
-            <span id="mc-risk-rating" class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">Medium Risk</span>
-          </div>
-          <span class="status-badge" id="mc-status">Verificando...</span>
-        </div>
 
-        <!-- Seção 1: Model Overview -->
-        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
-          <h3 style="font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 12px;">📋</span> 1. Model Overview
-          </h3>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px;">
+      <!-- Título de Seção do Model Card -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model Card</h2>
+          <span id="mc-risk-rating" class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium Risk</span>
+        </div>
+        <span class="status-badge" id="mc-status" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Verificando...</span>
+      </div>
+
+      <!-- Conteúdo do Model Card em 2 Colunas Equilibradas -->
+      <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start;">
+        
+        <!-- Coluna Esquerda: Overview, Training e Additional Info -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          
+          <!-- Seção 1: Model Overview -->
+          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+            <h3 style="font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px;">📋</span> 1. Model Overview
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome do Modelo</span>
+                <strong id="mc-name" style="font-size: 13px; color: #fff;">-</strong>
+              </div>
+              <div>
+                <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Versão</span>
+                <strong id="mc-version" style="font-size: 13px; color: #fff;">-</strong>
+              </div>
+            </div>
             <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome do Modelo</span>
-              <strong id="mc-name" style="font-size: 13px; color: #fff;">-</strong>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Descrição</span>
+              <p id="mc-description" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
             </div>
             <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Versão</span>
-              <strong id="mc-version" style="font-size: 13px; color: #fff;">-</strong>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Intended Uses (Uso Recomendado)</span>
+              <p id="mc-intended-uses" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1; font-style: italic;">-</p>
             </div>
           </div>
-          <div style="margin-bottom: 10px;">
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Descrição</span>
-            <p id="mc-description" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+
+          <!-- Seção 2: Training Details -->
+          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+            <h3 style="font-size: 11px; color: var(--primary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px;">🏋️‍♂️</span> 2. Training Details
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Ticker</span>
+                <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Lookback Window</span>
+                <strong id="mc-window" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Target Mode</span>
+                <strong id="mc-target" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Feature Mode</span>
+                <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Data Source</span>
+                <strong id="mc-data-source" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>MLflow Run ID</span>
+                <strong id="mc-run-id" style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
+              </div>
+            </div>
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Observações de Treino</span>
+              <p id="mc-observations" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+            </div>
           </div>
-          <div>
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Intended Uses (Uso Recomendado)</span>
-            <p id="mc-intended-uses" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1; font-style: italic;">-</p>
+
+          <!-- Seção 4: Additional Information -->
+          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+            <h3 style="font-size: 11px; color: #f59e0b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px;">⚠️</span> 4. Additional Information
+            </h3>
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Considerações Éticas e Responsabilidade</span>
+              <p id="mc-ethical" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+            </div>
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Limitações e Recomendações (Caveats)</span>
+              <p id="mc-caveats" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+            </div>
           </div>
+
         </div>
 
-        <!-- Seção 2: Training Details -->
-        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
-          <h3 style="font-size: 11px; color: var(--primary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 12px;">🏋️‍♂️</span> 2. Training Details
-          </h3>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 10px;">
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>Ticker</span>
-              <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+        <!-- Coluna Direita: Evaluation Details (Metrics, Artifacts e Gráfico) -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          
+          <div class="panel" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+            <h3 style="font-size: 11px; color: var(--success); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 12px;">📊</span> 3. Evaluation Details
+            </h3>
+            
+            <div>
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dataset de Teste</span>
+              <p id="mc-eval-dataset" style="font-size: 12px; margin: 0; color: #cbd5e1; font-weight: 500;">-</p>
             </div>
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>Lookback Window</span>
-              <strong id="mc-window" style="font-size: 13px;">-</strong>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--success); font-size: 13px;">-</strong></div>
+              <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
+              <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
+              <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--success); font-size: 13px;">-</strong></div>
             </div>
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>Target Mode</span>
-              <strong id="mc-target" style="font-size: 13px;">-</strong>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--panel-border); padding-top: 12px;">
+              <span class="muted" style="font-size: 9px; text-transform: uppercase;">Artefatos:</span>
+              <span id="mc-art-onnx" class="status-badge" style="font-size: 9px;">ONNX</span>
+              <span id="mc-art-safetensors" class="status-badge" style="font-size: 9px;">Safetensors</span>
+              <span id="mc-art-preproc" class="status-badge" style="font-size: 9px;">Preprocessor</span>
+              <span id="mc-art-meta" class="status-badge" style="font-size: 9px;">Metadata</span>
             </div>
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>Feature Mode</span>
-              <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
-            </div>
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>Data Source</span>
-              <strong id="mc-data-source" style="font-size: 13px;">-</strong>
-            </div>
-            <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-              <span>MLflow Run ID</span>
-              <strong id="mc-run-id" style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
+
+            <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; text-align: center;">
+              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 8px; text-align: left;">Gráfico de Avaliação (Treino)</span>
+              <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
             </div>
           </div>
-          <div>
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Observações de Treino</span>
-            <p id="mc-observations" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
-          </div>
+
         </div>
 
-        <!-- Seção 3: Evaluation Details -->
-        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
-          <h3 style="font-size: 11px; color: var(--success); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 12px;">📊</span> 3. Evaluation Details
-          </h3>
-          <div style="margin-bottom: 10px;">
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dataset de Teste</span>
-            <p id="mc-eval-dataset" style="font-size: 12px; margin: 0; color: #cbd5e1; font-weight: 500;">-</p>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
-            <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--success); font-size: 13px;">-</strong></div>
-            <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
-            <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
-            <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--success); font-size: 13px;">-</strong></div>
-          </div>
-
-          <div style="display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
-            <span class="muted" style="font-size: 9px; text-transform: uppercase;">Status dos Artefatos:</span>
-            <span id="mc-art-onnx" class="status-badge" style="font-size: 9px;">ONNX</span>
-            <span id="mc-art-safetensors" class="status-badge" style="font-size: 9px;">Safetensors</span>
-            <span id="mc-art-preproc" class="status-badge" style="font-size: 9px;">Preprocessor</span>
-            <span id="mc-art-meta" class="status-badge" style="font-size: 9px;">Metadata</span>
-          </div>
-
-          <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; text-align: center;">
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 8px; text-align: left;">Gráfico de Avaliação (Treino)</span>
-            <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
-          </div>
-        </div>
-
-        <!-- Seção 4: Additional Information -->
-        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 6px; padding: 14px;">
-          <h3 style="font-size: 11px; color: #f59e0b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 12px;">⚠️</span> 4. Additional Information
-          </h3>
-          <div style="margin-bottom: 10px;">
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Considerações Éticas e Responsabilidade</span>
-            <p id="mc-ethical" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
-          </div>
-          <div>
-            <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Limitações e Recomendações (Caveats)</span>
-            <p id="mc-caveats" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
-          </div>
-        </div>
       </div>
     </section>
 
