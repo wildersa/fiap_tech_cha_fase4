@@ -1,0 +1,9 @@
+{
+  "model_name": "StockLSTM",
+  "model_description": "Modelo Deep Learning baseado em LSTM configurável (Univariado/Multivariado) projetado para previsão de séries temporais de ativos financeiros.",
+  "intended_uses": "Auxílio à tomada de decisão em estratégias de trading de curto prazo (D+1) para a ação PETR4. Não recomendado para uso autônomo de alta frequência (HFT) sem supervisão humana.",
+  "training_observations": "Modelo treinado com otimizador AdamW, decaimento de peso (weight decay) e parada antecipada (early stopping) baseada na perda do conjunto de validação. O processamento separa as escalas de feature/target usando Anchor Price.",
+  "evaluation_dataset": "Split temporal Out-of-Time de 15% da base de dados histórica.",
+  "ethical_considerations": "Este modelo foi criado exclusivamente para fins acadêmicos (Tech Challenge FIAP) e não constitui conselho financeiro ou indicação de compra/venda.",
+  "caveats_and_recommendations": "O modelo assume estabilidade relativa do mercado. Eventos de cisne negro (black swan), crises geopolíticas extremas ou alterações corporativas bruscas invalidam as previsões temporais devido ao conceito de Data Drift."
+}

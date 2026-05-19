@@ -367,15 +367,32 @@ def model_card_payload() -> dict:
         except Exception:
             preprocessor = None
 
+    # Carrega textos qualitativos de model_card_template.json se existir
+    template_path = Path(__file__).resolve().parent / "model_card_template.json"
+    text_defaults = {
+        "model_name": "StockLSTM",
+        "model_description": "Modelo Deep Learning baseado em LSTM configurável (Univariado/Multivariado) projetado para previsão de séries temporais de ativos financeiros.",
+        "intended_uses": "Auxílio à tomada de decisão em estratégias de trading de curto prazo (D+1) para a ação PETR4. Não recomendado para uso autônomo de alta frequência (HFT) sem supervisão humana.",
+        "training_observations": "Modelo treinado com otimizador AdamW, decaimento de peso (weight decay) e parada antecipada (early stopping) baseada na perda do conjunto de validação. O processamento separa as escalas de feature/target usando Anchor Price.",
+        "evaluation_dataset": "Split temporal Out-of-Time de 15% da base de dados histórica.",
+        "ethical_considerations": "Este modelo foi criado exclusivamente para fins acadêmicos (Tech Challenge FIAP) e não constitui conselho financeiro ou indicação de compra/venda.",
+        "caveats_and_recommendations": "O modelo assume estabilidade relativa do mercado. Eventos de cisne negro (black swan), crises geopolíticas extremas ou alterações corporativas bruscas invalidam as previsões temporais devido ao conceito de Data Drift."
+    }
+    if template_path.exists():
+        try:
+            text_defaults.update(json.loads(template_path.read_text(encoding="utf-8")))
+        except Exception as e:
+            print(f"[ModelCard] Erro ao ler template json: {e}")
+
     # Monta a estrutura inspirada no AWS SageMaker Model Cards
     return {
         "model_overview": {
-            "model_name": "StockLSTM",
-            "model_description": "Modelo Deep Learning baseado em LSTM configurável (Univariado/Multivariado) projetado para previsão de séries temporais de ativos financeiros.",
+            "model_name": text_defaults["model_name"],
+            "model_description": text_defaults["model_description"],
             "model_version": "1.0.0",
             "model_status": "Approved" if (MODEL_DIR / "model.onnx").exists() else "Draft",
             "risk_rating": "Medium",
-            "intended_uses": "Auxílio à tomada de decisão em estratégias de trading de curto prazo (D+1) para a ação PETR4. Não recomendado para uso autônomo de alta frequência (HFT) sem supervisão humana."
+            "intended_uses": text_defaults["intended_uses"]
         },
         "training_details": {
             "symbol": metadata.get("symbol", "PETR4.SA"),
@@ -384,10 +401,10 @@ def model_card_payload() -> dict:
             "feature_mode": metadata.get("feature_mode") or (preprocessor or {}).get("feature_mode") or "single",
             "target_mode": metadata.get("target_mode") or (preprocessor or {}).get("target_mode") or "log_returns",
             "mlflow_run_id": metadata.get("run_id", "Treinamento Local / Sem Run ID"),
-            "training_observations": "Modelo treinado com otimizador AdamW, decaimento de peso (weight decay) e parada antecipada (early stopping) baseada na perda do conjunto de validação. O processamento separa as escalas de feature/target usando Anchor Price."
+            "training_observations": text_defaults["training_observations"]
         },
         "evaluation_details": {
-            "evaluation_dataset": "Split temporal Out-of-Time de 15% da base de dados histórica.",
+            "evaluation_dataset": text_defaults["evaluation_dataset"],
             "metrics": metrics,
             "artifacts_available": {
                 "model_onnx": (MODEL_DIR / "model.onnx").exists(),
@@ -397,8 +414,8 @@ def model_card_payload() -> dict:
             }
         },
         "additional_information": {
-            "ethical_considerations": "Este modelo foi criado exclusivamente para fins acadêmicos (Tech Challenge FIAP) e não constitui conselho financeiro ou indicação de compra/venda.",
-            "caveats_and_recommendations": "O modelo assume estabilidade relativa do mercado. Eventos de cisne negro (black swan), crises geopolíticas extremas ou alterações corporativas bruscas invalidam as previsões temporais devido ao conceito de Data Drift."
+            "ethical_considerations": text_defaults["ethical_considerations"],
+            "caveats_and_recommendations": text_defaults["caveats_and_recommendations"]
         }
     }
 
