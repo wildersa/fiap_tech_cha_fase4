@@ -145,3 +145,65 @@ def test_root_redirect():
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 307
     assert response.headers["location"] == "/dashboard"
+
+
+@patch("src.api.MlflowClient")
+def test_delete_run_endpoint(mock_mlflow_client_class):
+    mock_client = MagicMock()
+    mock_mlflow_client_class.return_value = mock_client
+    
+    response = client.delete("/runs/run123")
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    mock_client.delete_run.assert_called_once_with("run123")
+
+
+def test_train_endpoint_invalid_features():
+    payload = {
+        "symbol": "PETR4.SA",
+        "feature_mode": "custom",
+        "selected_features": ["invalid_feat", "on"],
+        "max_epochs": 1,
+        "batch_size": 4
+    }
+    response = client.post("/train", json=payload)
+    assert response.status_code == 500
+    assert "Features invalidas/desconhecidas no registro" in response.json()["detail"]
+
+
+@patch("src.api.load_preprocessor")
+@patch("src.api.load_predictor")
+def test_predict_ohlcv_success(mock_load_pred, mock_load_prep, mock_preprocessor):
+    mock_load_prep.return_value = mock_preprocessor
+
+    mock_session = MagicMock()
+    mock_input = MagicMock()
+    mock_input.name = "input"
+    mock_session.get_inputs.return_value = [mock_input]
+    mock_session.run.return_value = [np.array([[0.1]], dtype=np.float32)]
+    mock_load_pred.return_value = mock_session
+
+    # Cria 15 linhas de OHLCV de teste
+    rows = []
+    for i in range(15):
+        rows.append({
+            "date": f"2024-01-{i+2:02d}",
+            "open": 30.0 + float(i),
+            "high": 31.0 + float(i),
+            "low": 29.0 + float(i),
+            "close": 30.5 + float(i),
+            "volume": 1000000.0
+        })
+    payload = {"symbol": "PETR4.SA", "rows": rows}
+    response = client.post("/predict/ohlcv", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "predicted_close" in data
+    assert data["symbol"] == "PETR4.SA"
+
+
+def test_predict_ohlcv_invalid_input():
+    # Envio vazio
+    response = client.post("/predict/ohlcv", json={"symbol": "PETR4.SA", "rows": []})
+    assert response.status_code == 400

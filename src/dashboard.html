@@ -649,6 +649,14 @@
                 <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
               </div>
               <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Feature Scaler</span>
+                <strong id="mc-feature-scaler" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                <span>Target Scaler</span>
+                <strong id="mc-target-scaler" style="font-size: 13px;">-</strong>
+              </div>
+              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
                 <span>Data Source</span>
                 <strong id="mc-data-source" style="font-size: 13px;">-</strong>
               </div>
@@ -907,6 +915,22 @@
             <label>Grad Clip <span class="tooltip-icon" data-tooltip="Evita que os gradientes explodam e desestabilizem os pesos da rede.">?</span></label>
             <input id="train-clip" type="number" step="0.1" value="1.0">
           </div>
+          <div class="form-group">
+            <label>Feature Scaler <span class="tooltip-icon" data-tooltip="Tipo do normalizador das features de entrada: StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
+            <select id="train-feature-scaler">
+              <option value="standard">StandardScaler</option>
+              <option value="minmax">MinMaxScaler</option>
+              <option value="robust">RobustScaler (Recomendado)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Scaler <span class="tooltip-icon" data-tooltip="Tipo do normalizador do alvo (target): StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
+            <select id="train-target-scaler">
+              <option value="standard">StandardScaler</option>
+              <option value="minmax">MinMaxScaler</option>
+              <option value="robust">RobustScaler (Recomendado)</option>
+            </select>
+          </div>
         </div>
         <button class="primary" style="width: 100%" onclick="runTraining()" id="train-btn">Inicializar Pipeline de Treinamento</button>
         
@@ -943,12 +967,12 @@
 </div>
 
   <div id="lineage-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; width: 600px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden;">
-      <div style="padding: 16px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03);">
+    <div style="background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; width: 600px; max-width: 95%; max-height: 90vh; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 16px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); flex-shrink: 0;">
         <h3 style="margin: 0; color: var(--text);">Comparação de Linhagem</h3>
         <button onclick="document.getElementById('lineage-modal').classList.add('hidden'); document.getElementById('lineage-modal').style.display = 'none';" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 8px;">✕</button>
       </div>
-      <div style="padding: 20px;" id="lineage-modal-content">
+      <div style="padding: 20px; overflow-y: auto;" id="lineage-modal-content">
         <!-- Content populated by JS -->
       </div>
     </div>
@@ -969,12 +993,15 @@
 
     function showTab(name) {
       for (const tab of ['home', 'inference', 'telemetry', 'train']) {
-        document.getElementById(tab).classList.toggle('hidden', name !== tab);
-        document.getElementById('tab-' + tab).classList.toggle('active', name === tab);
+        const el = document.getElementById(tab);
+        const btn = document.getElementById('tab-' + tab);
+        if (el) el.classList.toggle('hidden', name !== tab);
+        if (btn) btn.classList.toggle('active', name === tab);
       }
       if (name === 'home') loadModelCard();
       if (name === 'telemetry') loadTelemetry();
       if (name === 'train') loadRuns();
+      localStorage.setItem('activeTab', name);
     }
 
     function money(value) {
@@ -1218,6 +1245,8 @@
         document.getElementById('mc-window').textContent = training.window_size ? training.window_size + ' dias' : '-';
         document.getElementById('mc-target').textContent = training.target_mode || '-';
         document.getElementById('mc-feature-mode').textContent = training.feature_mode || '-';
+        document.getElementById('mc-feature-scaler').textContent = training.feature_scaler_type || '-';
+        document.getElementById('mc-target-scaler').textContent = training.target_scaler_type || '-';
         document.getElementById('mc-data-source').textContent = training.data_source || '-';
         document.getElementById('mc-run-id').textContent = training.mlflow_run_id || '-';
         document.getElementById('mc-observations').textContent = training.training_observations || '-';
@@ -1458,7 +1487,7 @@
         }
       }
       
-      let currentSelection = Array.from(document.querySelectorAll('#groups-container input[type="checkbox"]:checked'))
+      let currentSelection = Array.from(document.querySelectorAll('#groups-container input[type="checkbox"][id^="feat-"]:checked'))
         .map(cb => cb.value);
       
       let matchedPreset = "custom";
@@ -1497,6 +1526,43 @@
       }
     }
 
+    function populateFormFromRunId(runId, buttonEl) {
+      const run = window.allRunsData.find(x => x.run_id === runId);
+      if (run && run.params) {
+        populateTrainingForm(runId, run.params);
+      }
+      if (buttonEl) {
+        buttonEl.textContent = "Preenchido!";
+        setTimeout(() => buttonEl.textContent = "Preencher Formulário", 2000);
+      }
+    }
+
+    async function deleteRun(runId, buttonEl) {
+      if (!confirm("Tem certeza que deseja deletar esta run do MLflow?")) {
+        return;
+      }
+      const originalText = buttonEl.textContent;
+      buttonEl.textContent = "Deletando...";
+      buttonEl.disabled = true;
+      try {
+        const response = await fetch('/runs/' + runId, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          alert('Erro ao deletar run: ' + (data.detail || JSON.stringify(data)));
+          buttonEl.textContent = originalText;
+          buttonEl.disabled = false;
+        } else {
+          loadRuns();
+        }
+      } catch (e) {
+        alert('Erro de rede: ' + e.message);
+        buttonEl.textContent = originalText;
+        buttonEl.disabled = false;
+      }
+    }
+
     function populateTrainingForm(run_id, p) {
       const map = {
         symbol: 'train-symbol',
@@ -1513,7 +1579,9 @@
         learning_rate: 'train-lr',
         weight_decay: 'train-wd',
         dropout: 'train-dropout',
-        grad_clip: 'train-clip'
+        grad_clip: 'train-clip',
+        feature_scaler_type: 'train-feature-scaler',
+        target_scaler_type: 'train-target-scaler'
       };
       for (const [key, id] of Object.entries(map)) {
         if (p[key] !== undefined && document.getElementById(id)) {
@@ -1542,6 +1610,10 @@
           } catch(e) {
             selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
           }
+        }
+        
+        if (selected.length === 0 && preset !== "custom" && FEATURE_PRESETS[preset]) {
+          selected = FEATURE_PRESETS[preset];
         }
         
         selected.forEach(featName => {
@@ -1625,7 +1697,8 @@
           
           let paramsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
           for (const [k, v] of Object.entries(p)) {
-            paramsHtml += `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 4px; padding: 4px 8px; font-size: 12px;"><span style="color: var(--muted); margin-right: 4px;">${k}:</span><span style="color: var(--text); font-weight: 500;">${v}</span></div>`;
+            const displayVal = String(v).replace(/,/g, ', ');
+            paramsHtml += `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 4px; padding: 4px 8px; font-size: 12px; max-width: 100%; word-break: break-word;"><span style="color: var(--muted); margin-right: 4px;">${k}:</span><span style="color: var(--text); font-weight: 500;">${displayVal}</span></div>`;
           }
           paramsHtml += '</div>';
           
@@ -1635,12 +1708,13 @@
           }
 
           detailsTr.innerHTML = `
-            <td colspan="6" style="padding: 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05);">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <td colspan="6" style="padding: 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); max-width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="font-size: 13px; font-weight: 600; color: var(--accent-hover);">Hiperparâmetros do Run:</div>
                 <div>
                   ${compareBtn}
-                  <button class="primary" style="padding: 4px 10px; font-size: 11px;" onclick='populateTrainingForm("${r.run_id}", ${JSON.stringify(p)}); this.textContent="Preenchido!"; setTimeout(()=>this.textContent="Preencher Formulário", 2000)'>Preencher Formulário</button>
+                  <button class="primary" style="padding: 4px 10px; font-size: 11px; margin-right: 8px;" onclick='populateFormFromRunId("${r.run_id}", this)'>Preencher Formulário</button>
+                  <button class="danger" style="padding: 4px 10px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #fca5a5;" onclick='deleteRun("${r.run_id}", this)'>🗑️ Deletar Run</button>
                 </div>
               </div>
               ${paramsHtml}
@@ -1690,7 +1764,7 @@
         if (preset === 'custom') {
           featureMode = 'custom';
           featurePreset = 'custom';
-          selectedFeatures = Array.from(document.querySelectorAll('#groups-container input[type="checkbox"]:checked'))
+          selectedFeatures = Array.from(document.querySelectorAll('#groups-container input[type="checkbox"][id^="feat-"]:checked'))
             .map(cb => cb.value);
         } else {
           featureMode = 'technical_features';
@@ -1720,13 +1794,16 @@
         learning_rate: parseFloat(document.getElementById('train-lr').value),
         weight_decay: parseFloat(document.getElementById('train-wd').value),
         dropout: parseFloat(document.getElementById('train-dropout').value),
-        grad_clip: parseFloat(document.getElementById('train-clip').value)
+        grad_clip: parseFloat(document.getElementById('train-clip').value),
+        feature_scaler_type: document.getElementById('train-feature-scaler').value,
+        target_scaler_type: document.getElementById('train-target-scaler').value
       };
       
       const parentId = document.getElementById('train-parent-run-id');
       if (parentId && parentId.value) {
         payload.parent_run_id = parentId.value;
       }
+      clearLineage();
       
       try {
         const response = await fetch('/train', {
@@ -1775,9 +1852,11 @@
       let paramDiffs = '';
       for (const [k, v] of Object.entries(child.params)) {
         if (parent.params[k] !== v) {
-          paramDiffs += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
-            <span style="color: var(--muted);">${k}</span>
-            <span><del style="color: var(--danger); margin-right: 8px;">${parent.params[k] || 'N/A'}</del> <strong style="color: var(--success);">➔ ${v}</strong></span>
+          const formattedParent = String(parent.params[k] || 'N/A').replace(/,/g, ', ');
+          const formattedChild = String(v).replace(/,/g, ', ');
+          paramDiffs += `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); gap: 16px; align-items: flex-start;">
+            <span style="color: var(--muted); min-width: 120px; word-break: break-word;">${k}</span>
+            <span style="word-break: break-word; text-align: right; max-width: 70%;"><del style="color: var(--danger); margin-right: 8px;">${formattedParent}</del> <strong style="color: var(--success);">➔ ${formattedChild}</strong></span>
           </div>`;
         }
       }
@@ -1965,8 +2044,15 @@
 
     // Initialize
     renderCalculatedFeatures();
-    loadModelCard();
-    loadTelemetry();
+    
+    // Reseta qualquer run pai persistida pelo cache de formulário do navegador
+    clearLineage();
+    
+    let initialTab = localStorage.getItem('activeTab') || 'home';
+    if (!ENABLE_TRAINING_API && initialTab === 'train') {
+      initialTab = 'home';
+    }
+    showTab(initialTab);
     
     // Add simple pulse animation for the training button and pipeline steps
     const style = document.createElement('style');

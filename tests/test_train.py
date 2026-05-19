@@ -13,8 +13,9 @@ from src.train import (
     directional_accuracy,
     run_training_pipeline,
     predict_numpy,
-    json_safe,
-    write_json
+    NpEncoder,
+    write_json,
+    resolve_feature_columns
 )
 
 def test_create_windowed_sequences(synthetic_df):
@@ -107,6 +108,7 @@ def test_predict_numpy():
     assert preds.shape == (10,)
 
 def test_json_safe():
+    import json
     data = {
         "np_int": np.int64(1),
         "np_float": np.float64(1.5),
@@ -114,10 +116,11 @@ def test_json_safe():
         "list": [1, 2],
         "nested": {"a": 1}
     }
-    safe = json_safe(data)
-    assert safe["np_int"] == 1
-    assert safe["np_float"] == 1.5
-    assert safe["np_array"] == [1, 2, 3]
+    encoded_str = json.dumps(data, cls=NpEncoder)
+    loaded = json.loads(encoded_str)
+    assert loaded["np_int"] == 1
+    assert loaded["np_float"] == 1.5
+    assert loaded["np_array"] == [1, 2, 3]
 
 def test_write_json(tmp_path):
     path = tmp_path / "test.json"
@@ -226,3 +229,114 @@ def test_run_training_pipeline_feature_preset(mock_load_yf, synthetic_df, temp_m
     mlflow.end_run()
     results = run_training_pipeline(cfg)
     assert "metrics" in results
+
+
+def test_resolve_feature_columns_single():
+    cfg = TrainConfig(feature_mode="single")
+    cols = resolve_feature_columns(cfg, "Log_Return")
+    assert cols == ["Log_Return"]
+
+
+def test_resolve_feature_columns_technical_preset():
+    cfg = TrainConfig(feature_mode="technical_features", feature_preset="returns_basic")
+    cols = resolve_feature_columns(cfg, "Log_Return")
+    assert cols == ["Log_Return", "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5"]
+
+
+def test_resolve_feature_columns_custom_empty():
+    cfg = TrainConfig(feature_mode="custom", selected_features=[])
+    with pytest.raises(ValueError, match="O modo 'custom' exige que 'selected_features' nao esteja vazio"):
+        resolve_feature_columns(cfg, "Log_Return")
+
+
+def test_resolve_feature_columns_invalid_feature():
+    cfg = TrainConfig(feature_mode="custom", selected_features=["InvalidFeatureName"])
+    with pytest.raises(ValueError, match="Features invalidas/desconhecidas no registro"):
+        resolve_feature_columns(cfg, "Log_Return")
+
+
+@patch("shutil.rmtree")
+@patch("src.train.load_yfinance")
+def test_metadata_and_preprocessor_preservation(mock_load_yf, mock_rmtree, synthetic_df):
+    import json
+    import joblib
+    import shutil
+    
+    temp_challenger = Path("models/.temp_challenger")
+    if temp_challenger.exists():
+        try:
+            shutil.rmtree(temp_challenger)
+        except Exception:
+            pass
+
+    mock_load_yf.return_value = synthetic_df
+    cfg = TrainConfig(
+        symbol="TEST",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir="models/some_dir",
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+        feature_mode="technical_features",
+        feature_preset="returns_basic"
+    )
+    mlflow.end_run()
+    try:
+        results = run_training_pipeline(cfg)
+        
+        # Check metadata.json in temp_challenger
+        metadata_path = temp_challenger / "metadata.json"
+        assert metadata_path.exists()
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        
+        expected_features = ["Log_Return", "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5"]
+        assert metadata["selected_features"] == expected_features
+        assert metadata["feature_cols"] == expected_features
+        assert metadata["feature_count"] == len(expected_features)
+
+        # Check preprocessor.joblib preserves exact order of feature_cols
+        preproc_path = temp_challenger / "preprocessor.joblib"
+        assert preproc_path.exists()
+        preprocessor = joblib.load(preproc_path)
+        assert preprocessor["feature_cols"] == expected_features
+        assert preprocessor["selected_features"] == expected_features
+    finally:
+        if temp_challenger.exists():
+            try:
+                shutil.rmtree(temp_challenger)
+            except Exception:
+                pass
+
+
+@patch("src.train.load_yfinance")
+def test_non_single_model_no_promotion(mock_load_yf, synthetic_df, temp_model_dir):
+    import shutil
+    mock_load_yf.return_value = synthetic_df
+    
+    final_output_dir = Path(temp_model_dir) / "final_prod"
+    if final_output_dir.exists():
+        shutil.rmtree(final_output_dir)
+        
+    cfg = TrainConfig(
+        symbol="TEST",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(final_output_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+        feature_mode="ohlcv" # Not single, so should be rejected for auto-promotion
+    )
+    mlflow.end_run()
+    results = run_training_pipeline(cfg)
+    
+    # Because it is not "single", it is not promoted and the final output dir is not created/saved
+    model_file = final_output_dir / "model.onnx"
+    assert not model_file.exists()

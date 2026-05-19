@@ -1,8 +1,15 @@
 """
-Sintonia de hiperparametros para o modelo StockLSTM com registro no MLflow.
+Ajuste de hiperparametros para o modelo StockLSTM com registro no MLflow.
 """
 
 from __future__ import annotations
+
+import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 import argparse
 import itertools

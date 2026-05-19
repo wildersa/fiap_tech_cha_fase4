@@ -25,6 +25,7 @@ models/
 O projeto gerencia dependências usando o **Poetry**. Para garantir a portabilidade total do pipeline de treinamento e MLOps para ambientes de produção, todas as bibliotecas necessárias para treinamento (`torch`, `mlflow`, `yfinance`, `matplotlib`, `onnx`, `onnxscript`) foram incorporadas no grupo de dependências principal.
 
 Para instalar todo o ecossistema (API de inferência + treinamento + testes):
+
 ```bash
 poetry install
 ```
@@ -32,21 +33,26 @@ poetry install
 ## Pipeline de Treinamento e MLOps
 
 O sistema de treinamento suporta **Múltiplos Modos Dinâmicos** de análise:
-- **Feature Modes**: 
+
+- **Feature Modes**:
   - `single` (Univariado): Utiliza apenas o preço de fechamento como entrada. **Este é o único modo de produção suportado pela API de inferência em tempo real e elegível para promoção automática.**
   - `ohlcv`, `ohlcv_returns`, `technical_features` (Multivariados): **Modos puramente experimentais.** Permitem realizar testes avançados de arquiteturas de deep learning e logging completo de métricas no MLflow, porém não são promovidos automaticamente para produção de forma a evitar quebras de contrato com a API final.
 - **Target Modes**: `log_returns` (recomendado) ou `raw_close`.
 
 ### Otimizador Avançado (AdamW)
+
 Em vez de utilizar o Adam padrão, a rede é otimizada exclusivamente através do **AdamW**. Esta decisão arquitetural visa desacoplar o decaimento de pesos (L2 regularization) da atualização do gradiente de momento, prevenindo overfittings abruptos e garantindo uma generalização matemática muito superior ao prever o ruído estocástico das ações da Petrobras.
 
 ### Champion / Challenger (Promoção Baseada em Validação)
+
 Sempre que um treinamento univariado (`feature_mode="single"`) é finalizado, o script compara o novo modelo (Challenger) com o modelo atualmente em produção (Champion) usando o **MAPE de Validação** (`metrics_val["mape_pct"]`).
+
 - O conjunto de validação é a única métrica usada para guiar a seleção/promoção de modelos.
 - O conjunto de teste (`metrics_test`) permanece estritamente isolado para documentação final e model cards, garantindo que seja um verdadeiro "futuro não visto" e prevenindo vazamentos (*validation leakage*).
 - Se o novo modelo univariado obtiver um MAPE de validação menor, ele substituirá os arquivos da pasta `models/lstm_petr4` e se tornará o novo Campeão.
 
 ### Interface Gráfica ou CLI
+
 Você pode treinar o modelo diretamente pela interface web (`/dashboard` -> Aba Treino) ou executar o script de sintonia fina/busca de hiperparâmetros, registrando tudo no banco local do MLflow:
 
 ```bash
@@ -54,6 +60,7 @@ $env:PYTHONPATH="." ; poetry run python src/tune.py --n-trials 5 --max-epochs 30
 ```
 
 *Para visualizar os resultados no MLflow UI:*
+
 ```bash
 poetry run mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
@@ -64,12 +71,14 @@ O `Dockerfile` utiliza uma arquitetura robusta e adaptativa baseada em **Build A
 
 **1. Build Leve (Para Produção/Inferência):**
 O Poetry ignora módulos pesados (`torch`, `mlflow`, etc.) instalando apenas o motor ONNX. O modelo treinado já é empacotado (`COPY models/`) para gerar um contêiner 100% Stateless de inicialização instantânea.
+
 ```bash
 docker build --build-arg ENV=prod -t stock-api:prod .
 ```
 
 **2. Build Pesado (Worker de Treinamento/GPU):**
 Para rodar jobs de treino pesados no Kubernetes ou na Cloud.
+
 ```bash
 docker build --build-arg ENV=dev -t stock-api:dev .
 ```
@@ -77,6 +86,7 @@ docker build --build-arg ENV=dev -t stock-api:dev .
 ## Endpoints e Dashboard Premium
 
 Para subir a API de inferência:
+
 ```bash
 poetry run uvicorn src.api:app --reload
 ```
@@ -98,10 +108,18 @@ Devido às vulnerabilidades de segurança do carregamento padrão do PyTorch (`t
 ## Monitoramento e Telemetria
 
 ### 1. Telemetria In-Memory (Vercel-ready)
+
 Toda requisição HTTP passa por um middleware que coleta latência, status e carga na CPU/RAM via `psutil`. O armazenamento ocorre em memória via filas (`deque` limitadas), ideal para instâncias serverless efêmeras, sem dependência de banco de dados para demonstrar a saúde básica.
 
 ### 2. Prometheus (Scrape contínuo)
+
 A API expõe o endpoint padrão `/metrics` integrado ao `prometheus-fastapi-instrumentator` para coletar requisições globais e monitoramento de performance de longo prazo utilizando instâncias externas (ex: Grafana/Prometheus Stack).
+
+## Rascunhos e anotações
+
+<https://ijisae.org/index.php/IJISAE/article/view/5396/4121>
+<https://etasr.com/index.php/ETASR/article/view/12685/5689>
+<https://arxiv.org/abs/2303.02223>
 
 ---
 *Projeto desenvolvido para o Tech Challenge FIAP.*

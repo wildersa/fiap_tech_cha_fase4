@@ -12,7 +12,12 @@ A API calcula os log-retornos, aplica o mesmo scaler do treino, executa a LSTM
 e converte o log-retorno previsto para preco de fechamento.
 """
 
-from __future__ import annotations
+import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 import json
 import os
@@ -24,6 +29,8 @@ from typing import List
 
 import joblib
 import numpy as np
+import pandas as pd
+from src.data_loader import normalize_columns, ensure_datetime_index, add_features
 import psutil
 import onnxruntime as ort
 from fastapi import FastAPI, HTTPException
@@ -75,6 +82,32 @@ class PredictRequest(BaseModel):
         ...,
         description="Lista cronológica de preços de fechamento anteriores do ativo. A quantidade mínima exigida é igual ao window_size + 1 (ex: se window_size=60, envie pelo menos 61 fechamentos).",
         examples=[[30.1, 30.2, 30.5, 30.4, 30.7, 30.9, 31.0, 31.2, 31.5, 31.4, 31.8, 31.9, 32.1, 32.0, 32.4, 32.5, 32.7, 32.6, 32.9, 33.1, 33.0, 33.4, 33.5, 33.7, 33.6, 33.9, 34.1, 34.0, 34.4, 34.5, 34.7, 34.6, 34.9, 35.1, 35.0, 35.4, 35.5, 35.7, 35.6, 35.9, 36.1, 36.0, 36.4, 36.5, 36.7, 36.6, 36.9, 37.1, 37.0, 37.4, 37.5, 37.7, 37.6, 37.9, 38.1, 38.0, 38.4, 38.5, 38.7, 38.6, 38.9]]
+    )
+
+
+class OhlcvRow(BaseModel):
+    date: str = Field(..., description="Data no formato YYYY-MM-DD", examples=["2024-01-02"])
+    open: float = Field(..., description="Preço de Abertura", examples=[35.1])
+    high: float = Field(..., description="Preço Máximo", examples=[36.0])
+    low: float = Field(..., description="Preço Mínimo", examples=[34.8])
+    close: float = Field(..., description="Preço de Fechamento", examples=[35.7])
+    volume: float = Field(..., description="Volume de negociação", examples=[12345600])
+
+
+class PredictOhlcvRequest(BaseModel):
+    symbol: str = Field(
+        "PETR4.SA",
+        description="Código do ativo financeiro a ser previsto.",
+        examples=["PETR4.SA"]
+    )
+    rows: List[OhlcvRow] = Field(
+        ...,
+        description="Lista cronológica recente de dados OHLCV (enviar dados suficientes para lookback window e cálculo de indicadores).",
+        examples=[
+            [
+                {"date": "2024-01-02", "open": 35.1, "high": 36.0, "low": 34.8, "close": 35.7, "volume": 12345600}
+            ]
+        ]
     )
 
 
@@ -237,10 +270,8 @@ def sync_best_model_from_mlflow() -> None:
         for exp in experiments:
             runs = client.search_runs(experiment_ids=[exp.experiment_id])
             for r in runs:
-                # Impede promoção automática de modelos multivariados/experimentais
-                feature_mode = r.data.params.get("feature_mode", "single")
-                if feature_mode != "single":
-                    continue
+                # Com o endpoint /predict/ohlcv habilitado, qualquer feature_mode pode ser promovido!
+                pass
 
                 # Prioriza a métrica de validação para a tomada de decisão
                 mape = (
@@ -344,7 +375,10 @@ def build_latest_window(closes: np.ndarray, preprocessor: dict) -> np.ndarray:
     feature_mode = preprocessor.get("feature_mode", "single")
     
     if feature_mode != "single":
-        raise ValueError(f"Feature mode '{feature_mode}' nao e suportado para inferencia em tempo real na API simplificada. Use feature_mode='single'.")
+        raise ValueError(
+            f"Feature mode '{feature_mode}' não é suportado para inferência em tempo real na API simplificada /predict. "
+            "Por favor, use o endpoint multivariado '/predict/ohlcv'."
+        )
 
     if target_mode in {"log_returns", "returns"}:
         required_closes = window_size + 1
@@ -396,6 +430,106 @@ def predict_next(closes_payload: List[float]) -> dict:
 
     change_abs = predicted_close - last_close
     change_pct = (change_abs / last_close) * 100 if last_close else 0.0
+    return {
+        "prediction_horizon": "next_trading_day",
+        "last_close": last_close,
+        "predicted_close": float(predicted_close),
+        "predicted_log_return": predicted_log_return,
+        "predicted_return_pct": float(predicted_return_pct),
+        "predicted_change_abs": float(change_abs),
+        "predicted_change_pct": float(change_pct),
+        "predicted_direction": "alta" if change_abs >= 0 else "queda",
+    }
+
+
+def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
+    preprocessor = load_preprocessor()
+    session = load_predictor()
+
+    # 1. Converter para DataFrame
+    df = pd.DataFrame(rows_payload)
+
+    # 2. Normalizar nomes das colunas
+    df = normalize_columns(df)
+
+    # 3. Garantir index datetime e ordenação
+    df = ensure_datetime_index(df)
+
+    # 4. Validar colunas necessárias
+    required_cols = ["Open", "High", "Low", "Close", "Volume"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Colunas obrigatórias ausentes no payload OHLCV: {missing}")
+
+    # 5. Adicionar/calcular features baseado no preprocessor do modelo treinado
+    feature_mode = preprocessor.get("feature_mode", "single")
+    if feature_mode == "single":
+        target_col = preprocessor.get("target_col", "Log_Return")
+        if target_col == "Log_Return":
+            df["Log_Return"] = np.log(df["Close"] / df["Close"].shift(1))
+        elif target_col == "Return":
+            df["Return"] = df["Close"].pct_change()
+        # Remove as linhas com NaN resultantes do shift/pct_change
+        df = df.dropna(subset=[target_col])
+    else:
+        # Modo multivariado: calcular todas as features
+        df = add_features(df)
+
+    # 6. Validar que as colunas de feature esperadas foram geradas
+    feature_cols = preprocessor.get("feature_cols", ["Log_Return"])
+    missing_feats = [f for f in feature_cols if f not in df.columns]
+    if missing_feats:
+        raise ValueError(f"Não foi possível calcular todas as features necessárias: {missing_feats}. Envie mais linhas de histórico.")
+
+    # 7. Validar window_size mínimo após limpeza/cálculos
+    window_size = int(preprocessor["window_size"])
+    if len(df) < window_size:
+        raise ValueError(
+            f"Após o cálculo de indicadores, restaram apenas {len(df)} linhas válidas "
+            f"(mínimo necessário para window_size de {window_size}: {window_size} linhas). "
+            "Por favor, envie um histórico de dados mais longo para estabilização das médias/indicadores."
+        )
+
+    # 8. Extrair a janela de lookback
+    latest_df = df[feature_cols].tail(window_size)
+    X_values = latest_df.values.astype(np.float32)
+
+    # 9. Escalar features usando o normalizador salvo
+    scaler_key = "feature_scaler" if "feature_scaler" in preprocessor else "scaler"
+    scaled_window = preprocessor[scaler_key].transform(X_values)
+
+    # 10. Ajustar dimensão para LSTM: (batch_size=1, window_size, input_size=len(feature_cols))
+    X = scaled_window.reshape(1, window_size, len(feature_cols)).astype(np.float32)
+
+    # 11. Executar predição na sessão ONNX
+    ort_inputs = {session.get_inputs()[0].name: X}
+    ort_outs = session.run(None, ort_inputs)
+    predicted_scaled = float(ort_outs[0][0][0])
+
+    # 12. Desnormalizar o target
+    target_scaler_key = "target_scaler" if "target_scaler" in preprocessor else "scaler"
+    predicted_raw = float(preprocessor[target_scaler_key].inverse_transform([[predicted_scaled]])[0][0])
+
+    # 13. Reverter escala de retorno/log-retorno se aplicável para obter o preço final
+    last_close = float(df["Close"].iloc[-1])
+    target_mode = preprocessor.get("target_mode", "log_returns")
+
+    if target_mode == "log_returns":
+        predicted_close = last_close * float(np.exp(predicted_raw))
+        predicted_log_return = predicted_raw
+        predicted_return_pct = float((np.exp(predicted_raw) - 1) * 100)
+    elif target_mode == "returns":
+        predicted_close = last_close * float(1.0 + predicted_raw)
+        predicted_log_return = float(np.log(1.0 + predicted_raw)) if (1.0 + predicted_raw) > 0 else 0.0
+        predicted_return_pct = float(predicted_raw * 100)
+    else: # raw_close
+        predicted_close = predicted_raw
+        predicted_log_return = float(np.log(predicted_close / last_close)) if (predicted_close > 0 and last_close > 0) else 0.0
+        predicted_return_pct = float((predicted_close / last_close - 1) * 100) if last_close else 0.0
+
+    change_abs = predicted_close - last_close
+    change_pct = (change_abs / last_close) * 100 if last_close else 0.0
+
     return {
         "prediction_horizon": "next_trading_day",
         "last_close": last_close,
@@ -511,7 +645,13 @@ def model_card_payload() -> dict:
             "window_size": metadata.get("window_size") or (preprocessor or {}).get("window_size") or 60,
             "feature_mode": metadata.get("feature_mode") or (preprocessor or {}).get("feature_mode") or "single",
             "target_mode": metadata.get("target_mode") or (preprocessor or {}).get("target_mode") or "log_returns",
+            "feature_scaler_type": metadata.get("feature_scaler_type") or (preprocessor or {}).get("feature_scaler_type") or "standard",
+            "target_scaler_type": metadata.get("target_scaler_type") or (preprocessor or {}).get("target_scaler_type") or "standard",
             "mlflow_run_id": metadata.get("run_id", "Treinamento Local / Sem Run ID"),
+            "feature_preset": metadata.get("feature_preset") or (preprocessor or {}).get("feature_preset"),
+            "selected_features": metadata.get("selected_features") or (preprocessor or {}).get("selected_features"),
+            "feature_count": metadata.get("feature_count") or (len(preprocessor["feature_cols"]) if preprocessor and "feature_cols" in preprocessor else 1),
+            "feature_cols": metadata.get("feature_cols") or (preprocessor or {}).get("feature_cols") or [],
             "training_observations": text_defaults["training_observations"]
         },
         "evaluation_details": {
@@ -652,6 +792,24 @@ def get_runs(limit: int = 100):
     return {"runs": runs_data}
 
 
+@app.delete(
+    "/runs/{run_id}",
+    summary="Deletar uma Run do MLflow",
+    description="Remove/deleta logicamente uma execução específica do MLflow pelo seu run_id.",
+    response_description="Status de sucesso da remoção.",
+    tags=["Treinamento & MLOps"]
+)
+def delete_run(run_id: str):
+    if not ENABLE_TRAINING_API:
+        raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
+    try:
+        client = MlflowClient()
+        client.delete_run(run_id)
+        return {"status": "success", "message": f"Run {run_id} deletada com sucesso."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao deletar run: {str(e)}")
+
+
 @app.post(
     "/train",
     summary="Iniciar Pipeline de Treinamento",
@@ -688,17 +846,40 @@ def train_model(req: TrainRequest):
     tags=["Inferência"]
 )
 def predict(request: PredictRequest):
-    preprocessor = None
-    try:
-        preprocessor = load_preprocessor()
-    except Exception:
-        pass
-    min_closes = int((preprocessor or {}).get("window_size", 60)) + 1
-    if len(request.closes) < min_closes:
-        raise HTTPException(status_code=400, detail=f"Envie pelo menos {min_closes} fechamentos.")
-
     try:
         result = predict_next(request.closes)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    response = {
+        "symbol": request.symbol,
+        "prediction_horizon": result["prediction_horizon"],
+        "last_close": result["last_close"],
+        "predicted_close": result["predicted_close"],
+        "predicted_log_return": result["predicted_log_return"],
+        "predicted_return_pct": result["predicted_return_pct"],
+        "predicted_change_abs": result["predicted_change_abs"],
+        "predicted_change_pct": result["predicted_change_pct"],
+        "predicted_direction": result["predicted_direction"],
+        "baseline_close": result["last_close"],
+        "model_version": "v1",
+    }
+    APP_METRICS["prediction_requests"] += 1
+    APP_METRICS["last_prediction"] = response
+    return response
+
+
+@app.post(
+    "/predict/ohlcv",
+    summary="Realizar Predição Multivariada (Inferência D+1 via OHLCV)",
+    description="Recebe uma série temporal de registros OHLCV recentes, calcula as features correspondentes ao modelo ativo (seja univariado ou multivariado), aplica os normalizadores correspondentes e executa a inferência acelerada ONNX Runtime para prever o fechamento do dia seguinte (D+1).",
+    response_description="Previsão detalhada para o próximo fechamento (D+1) baseada no modelo ativo.",
+    tags=["Inferência"]
+)
+def predict_ohlcv(request: PredictOhlcvRequest):
+    try:
+        rows_dict = [row.model_dump() for row in request.rows]
+        result = predict_next_ohlcv(rows_dict)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

@@ -188,3 +188,5 @@ mlruns/
 # Project Janitor
 .archive/
 .janitor/
+
+.gemini_security/

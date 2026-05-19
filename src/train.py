@@ -7,6 +7,19 @@ Normalizacao via StandardScaler separados (Features e Target).
 
 from __future__ import annotations
 
+import sys
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+import logging
+
+# Configurar loggers para evitar avisos de exportação e compatibilidade no terminal
+logging.getLogger("torch.onnx").setLevel(logging.ERROR)
+logging.getLogger("torch").setLevel(logging.ERROR)
+
 import argparse
 import copy
 import json
@@ -68,14 +81,10 @@ class TrainConfig:
 
 
 def resolve_target_column(target_mode: str) -> str:
-    if target_mode == "log_returns":
-        return "Log_Return"
-    elif target_mode == "raw_close":
-        return "Close"
-    elif target_mode == "returns":
-        return "Return"
-    else:
+    mapping = {"log_returns": "Log_Return", "raw_close": "Close", "returns": "Return"}
+    if target_mode not in mapping:
         raise ValueError(f"Target mode desconhecido: {target_mode}")
+    return mapping[target_mode]
 
 
 def resolve_feature_columns(cfg: TrainConfig, target_col: str) -> list[str]:
@@ -88,14 +97,10 @@ def resolve_feature_columns(cfg: TrainConfig, target_col: str) -> list[str]:
     elif cfg.feature_mode == "ohlcv_returns":
         return ["Open", "High", "Low", "Close", "Volume", "Log_Return"]
     elif cfg.feature_mode == "technical_features":
-        if cfg.selected_features:
-            features = cfg.selected_features
-        elif cfg.feature_preset:
-            if cfg.feature_preset not in FEATURE_PRESETS:
-                raise ValueError(f"Preset desconhecido: {cfg.feature_preset}")
-            features = FEATURE_PRESETS[cfg.feature_preset]
-        else:
-            features = FEATURE_PRESETS["technical_complete"]
+        preset = cfg.feature_preset or "technical_complete"
+        if preset not in FEATURE_PRESETS:
+            raise ValueError(f"Preset desconhecido: {preset}")
+        features = cfg.selected_features or FEATURE_PRESETS[preset]
     elif cfg.feature_mode == "custom":
         if not cfg.selected_features:
             raise ValueError("O modo 'custom' exige que 'selected_features' nao esteja vazio.")
@@ -103,10 +108,9 @@ def resolve_feature_columns(cfg: TrainConfig, target_col: str) -> list[str]:
     else:
         raise ValueError(f"Feature mode desconhecido: {cfg.feature_mode}")
         
-    invalid_features = [f for f in features if f not in valid_names]
-    if invalid_features:
-        raise ValueError(f"Features invalidas/desconhecidas no registro: {invalid_features}")
-        
+    invalid = [f for f in features if f not in valid_names]
+    if invalid:
+        raise ValueError(f"Features invalidas/desconhecidas no registro: {invalid}")
     return list(features)
 
 
@@ -202,24 +206,19 @@ def directional_accuracy(y_true, y_pred, last_close) -> float:
     return float(np.mean(true_dir == pred_dir) * 100)
 
 
-def json_safe(obj):
-    if isinstance(obj, dict):
-        return {str(k): json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [json_safe(v) for v in obj]
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if hasattr(obj, "isoformat"):
-        return obj.isoformat()
-    return obj
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if hasattr(obj, "isoformat"):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 def write_json(path: str | Path, payload: dict) -> None:
-    Path(path).write_text(json.dumps(json_safe(payload), indent=2, ensure_ascii=False), encoding="utf-8")
+    Path(path).write_text(json.dumps(payload, cls=NpEncoder, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def plot_performance(
@@ -567,17 +566,25 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         # MLOps: Compilacao para formato estatico ONNX (Production Ready)
         dummy_input = torch.randn(1, cfg.window_size, X_train.shape[2]).to(device)
         model.eval()
+        # Usando o novo mecanismo de dynamic_shapes recomendado para PyTorch 2.x
+        batch_dim = torch.export.Dim("batch_size", min=1, max=2048)
+        dynamic_shapes = {
+            "x": {0: batch_dim}
+        }
+
         torch.onnx.export(
             model,
             dummy_input,
             str(save_dir / "model.onnx"),
             export_params=True,
-            opset_version=14,
+            opset_version=18,
             do_constant_folding=True,
             input_names=["input"],
             output_names=["output"],
-            dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+            dynamic_shapes=dynamic_shapes,
         )
+
+        resolved_selected_features = feature_cols if cfg.feature_mode in {"technical_features", "custom"} else None
 
         preprocess = {
             "feature_scaler": feature_scaler,
@@ -587,7 +594,9 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             "target_col": target_col,
             "feature_mode": cfg.feature_mode,
             "target_mode": cfg.target_mode,
-            "selected_features": cfg.selected_features,
+            "feature_scaler_type": cfg.feature_scaler_type,
+            "target_scaler_type": cfg.target_scaler_type,
+            "selected_features": resolved_selected_features,
             "feature_preset": cfg.feature_preset,
             "feature_schema_version": "v1",
             "feature_registry_version": "2026-05-19"
@@ -607,7 +616,8 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             "train_shape": X_train.shape,
             "val_shape": X_val.shape,
             "test_shape": X_test.shape,
-            "selected_features": cfg.selected_features,
+            "selected_features": resolved_selected_features,
+            "feature_cols": feature_cols,
             "feature_preset": cfg.feature_preset,
             "feature_schema_version": "v1",
             "feature_registry_version": "2026-05-19",
