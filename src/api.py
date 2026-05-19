@@ -66,32 +66,124 @@ TELEMETRY_HISTORY = deque(maxlen=100)
 
 
 class PredictRequest(BaseModel):
-    symbol: str = "PETR4.SA"
-    closes: List[float] = Field(..., description="Lista cronologica de fechamentos anteriores")
+    symbol: str = Field(
+        "PETR4.SA",
+        description="Código do ativo financeiro a ser previsto.",
+        examples=["PETR4.SA"]
+    )
+    closes: List[float] = Field(
+        ...,
+        description="Lista cronológica de preços de fechamento anteriores do ativo. A quantidade mínima exigida é igual ao window_size + 1 (ex: se window_size=60, envie pelo menos 61 fechamentos).",
+        examples=[[30.1, 30.2, 30.5, 30.4, 30.7, 30.9, 31.0, 31.2, 31.5, 31.4, 31.8, 31.9, 32.1, 32.0, 32.4, 32.5, 32.7, 32.6, 32.9, 33.1, 33.0, 33.4, 33.5, 33.7, 33.6, 33.9, 34.1, 34.0, 34.4, 34.5, 34.7, 34.6, 34.9, 35.1, 35.0, 35.4, 35.5, 35.7, 35.6, 35.9, 36.1, 36.0, 36.4, 36.5, 36.7, 36.6, 36.9, 37.1, 37.0, 37.4, 37.5, 37.7, 37.6, 37.9, 38.1, 38.0, 38.4, 38.5, 38.7, 38.6, 38.9]]
+    )
 
 
 class TrainRequest(BaseModel):
-    symbol: str = "PETR4.SA"
-    start_date: str = "2018-01-01"
-    end_date: str | None = None
-    window_size: int = 60
-    train_ratio: float = 0.70
-    val_ratio: float = 0.15
-    hidden_size: int = 64
-    num_layers: int = 1
-    dropout: float = 0.20
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-4
-    batch_size: int = 32
-    max_epochs: int = 100
-    patience: int = 20
-    target_mode: str = "log_returns"
-    feature_mode: str = "single"
-    feature_scaler_type: str = "standard"
-    target_scaler_type: str = "standard"
-    grad_clip: float | None = 1.0
-    device: str = "auto"
-    parent_run_id: str | None = None
+    symbol: str = Field(
+        "PETR4.SA",
+        description="Código do ativo para busca no Yahoo Finance.",
+        examples=["PETR4.SA"]
+    )
+    start_date: str = Field(
+        "2018-01-01",
+        description="Data de início da coleta de dados históricos no formato YYYY-MM-DD.",
+        examples=["2018-01-01"]
+    )
+    end_date: str | None = Field(
+        None,
+        description="Data final da coleta no formato YYYY-MM-DD. Se nulo, coleta até a data atual.",
+        examples=["2024-12-31"]
+    )
+    window_size: int = Field(
+        60,
+        description="Tamanho da janela de lookback (dias de histórico para alimentar a LSTM).",
+        examples=[60]
+    )
+    train_ratio: float = Field(
+        0.70,
+        description="Proporção dos dados temporais para treinamento (0.0 a 1.0).",
+        examples=[0.70]
+    )
+    val_ratio: float = Field(
+        0.15,
+        description="Proporção dos dados temporais para validação (0.0 a 1.0).",
+        examples=[0.15]
+    )
+    hidden_size: int = Field(
+        64,
+        description="Número de neurônios na camada oculta da LSTM.",
+        examples=[64]
+    )
+    num_layers: int = Field(
+        1,
+        description="Número de camadas empilhadas na LSTM.",
+        examples=[1]
+    )
+    dropout: float = Field(
+        0.20,
+        description="Fator de dropout para regularização (apenas aplicável se num_layers > 1).",
+        examples=[0.20]
+    )
+    learning_rate: float = Field(
+        1e-3,
+        description="Taxa de aprendizado inicial do otimizador AdamW.",
+        examples=[0.001]
+    )
+    weight_decay: float = Field(
+        1e-4,
+        description="Fator de decaimento de peso (regularização L2) no AdamW.",
+        examples=[0.0001]
+    )
+    batch_size: int = Field(
+        32,
+        description="Tamanho do lote de treinamento.",
+        examples=[32]
+    )
+    max_epochs: int = Field(
+        100,
+        description="Quantidade máxima de épocas de treino.",
+        examples=[100]
+    )
+    patience: int = Field(
+        20,
+        description="Paciência do Early Stopping baseada na perda de validação.",
+        examples=[20]
+    )
+    target_mode: str = Field(
+        "log_returns",
+        description="Modo do alvo de treino: 'log_returns' (retornos logarítmicos) ou 'raw_close' (preço de fechamento bruto).",
+        examples=["log_returns"]
+    )
+    feature_mode: str = Field(
+        "single",
+        description="Tipo de features: 'single' (apenas preço) ou 'ohlcv_returns' (OHLCV completo).",
+        examples=["single"]
+    )
+    feature_scaler_type: str = Field(
+        "standard",
+        description="Tipo do normalizador das features: 'standard' ou 'minmax'.",
+        examples=["standard"]
+    )
+    target_scaler_type: str = Field(
+        "standard",
+        description="Tipo do normalizador do alvo (target): 'standard' ou 'minmax'.",
+        examples=["standard"]
+    )
+    grad_clip: float | None = Field(
+        1.0,
+        description="Valor limite para corte de gradiente (gradient clipping). Evita explosão de gradientes.",
+        examples=[1.0]
+    )
+    device: str = Field(
+        "auto",
+        description="Dispositivo de execução: 'auto' (detecta automaticamente), 'cpu' ou 'cuda'.",
+        examples=["auto"]
+    )
+    parent_run_id: str | None = Field(
+        None,
+        description="ID de uma run do MLflow para associar a linhagem (tags de pai/filho).",
+        examples=["52c6f10c0e1847c2b530514fe96b96db"]
+    )
 
 
 app = FastAPI(
@@ -454,7 +546,13 @@ def telemetry_payload() -> dict:
     }
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Verificação de Saúde (Liveness/Readiness)",
+    description="Retorna se a API está online e indica o caminho absoluto do diretório ativo de modelos no disco.",
+    response_description="Status de saúde da API e diretório configurado de modelo.",
+    tags=["Monitoramento & Diagnóstico"]
+)
 def health():
     return {"status": "ok", "model_dir": str(MODEL_DIR)}
 
@@ -464,12 +562,24 @@ def home():
     return RedirectResponse(url="/dashboard", status_code=307)
 
 
-@app.get("/model-card")
+@app.get(
+    "/model-card",
+    summary="Ficha Técnica (AWS SageMaker Model Card)",
+    description="Retorna a ficha técnica detalhada do modelo em formato JSON, estruturada no padrão do AWS SageMaker Model Cards (seções Model Overview, Training Details, Evaluation Details e Additional Information).",
+    response_description="Payload formatado no padrão AWS SageMaker Model Cards contendo governança, parâmetros de treino, métricas de validação e limites de responsabilidade.",
+    tags=["Monitoramento & Diagnóstico"]
+)
 def model_card():
     return model_card_payload()
 
 
-@app.get("/model-image")
+@app.get(
+    "/model-image",
+    summary="Gráfico de Performance do Modelo",
+    description="Retorna o gráfico de avaliação offline em formato PNG (gerado durante a fase de validação pós-treino do modelo de produção ativo).",
+    response_description="Arquivo de imagem PNG do gráfico de performance e curva de perdas.",
+    tags=["Monitoramento & Diagnóstico"]
+)
 def get_model_image():
     image_path = MODEL_DIR / "model_performance.png"
     if image_path.exists():
@@ -477,12 +587,24 @@ def get_model_image():
     raise HTTPException(status_code=404, detail="Imagem não encontrada.")
 
 
-@app.get("/telemetry")
+@app.get(
+    "/telemetry",
+    summary="Métricas de Telemetria do Sistema",
+    description="Retorna dados agregados de telemetria e recursos do servidor (uso de CPU, uso de memória do processo e do sistema, tempo de atividade, latências recentes de resposta e contagem de requisições baseada nos coletores do Prometheus).",
+    response_description="Relatório de performance em tempo real do sistema para diagnóstico e auditoria.",
+    tags=["Monitoramento & Diagnóstico"]
+)
 def telemetry():
     return telemetry_payload()
 
 
-@app.get("/runs")
+@app.get(
+    "/runs",
+    summary="Histórico de Treinamentos no MLflow",
+    description="Consulta o servidor MLflow local/remoto e lista o histórico de runs do experimento 'stock_lstm_hypersearch', incluindo parâmetros, métricas de validação, status da execução, tags e linhagem de derivação.",
+    response_description="Histórico cronológico das runs rastreadas no MLflow.",
+    tags=["Treinamento & MLOps"]
+)
 def get_runs(limit: int = 100):
     if not ENABLE_TRAINING_API:
         raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
@@ -511,7 +633,13 @@ def get_runs(limit: int = 100):
     return {"runs": runs_data}
 
 
-@app.post("/train")
+@app.post(
+    "/train",
+    summary="Iniciar Pipeline de Treinamento",
+    description="Dispara de forma síncrona o pipeline completo de treinamento: download histórico do yfinance, cálculo de features temporais, split de dados, normalização robusta por Anchor Price, treinamento da rede LSTM com AdamW/Early Stopping, validação cega, log no MLflow e salvamento dos artefatos em ONNX/Preprocessor. Se o modelo treinado tiver um MAPE menor que o campeão atual, ele é promovido automaticamente no final do processo.",
+    response_description="Status de sucesso do treinamento, métricas finais obtidas e pasta de saída.",
+    tags=["Treinamento & MLOps"]
+)
 def train_model(req: TrainRequest):
     if not ENABLE_TRAINING_API:
         raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
@@ -533,7 +661,13 @@ def train_model(req: TrainRequest):
         raise HTTPException(status_code=500, detail=f"Erro durante o treinamento: {str(e)}")
 
 
-@app.post("/predict")
+@app.post(
+    "/predict",
+    summary="Realizar Predição (Inferência D+1)",
+    description="Recebe uma série cronológica recente de fechamentos do ativo (mínimo de window_size + 1), extrai os retornos logarítmicos ou absolutos em tempo real, normaliza a janela de lookback usando os parâmetros salvos no preprocessor, executa a inferência acelerada na sessão ONNX Runtime e decodifica a previsão para o preço de fechamento do dia seguinte (D+1). Também computa a variação projetada absoluta/percentual e a direção (alta/queda).",
+    response_description="Previsão detalhada para o próximo fechamento (D+1) com base no modelo ativo.",
+    tags=["Inferência"]
+)
 def predict(request: PredictRequest):
     preprocessor = None
     try:
@@ -567,7 +701,14 @@ def predict(request: PredictRequest):
     return response
 
 
-@app.get("/dashboard", response_class=HTMLResponse)
+@app.get(
+    "/dashboard",
+    summary="Dashboard Visual Web",
+    description="Renderiza e retorna a interface gráfica HTML interativa (Single Page Application) com controle de treinamento, histórico de runs do MLflow, governança via SageMaker Model Card, telemetria do sistema e simulador visual de payloads de inferência.",
+    response_description="Interface gráfica completa do portal em HTML/CSS/JS.",
+    tags=["Visualização"],
+    response_class=HTMLResponse
+)
 def dashboard():
     sample_closes = []
     for i in range(65):
