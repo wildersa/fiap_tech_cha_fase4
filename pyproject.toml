@@ -47,5 +47,6 @@ pythonpath = [
 filterwarnings = [
   "ignore::FutureWarning",
   "ignore::UserWarning",
+  "ignore::DeprecationWarning",
   "ignore:Converting a tensor to a Python boolean"
 ]
