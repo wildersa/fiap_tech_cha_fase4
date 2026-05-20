@@ -1002,9 +1002,16 @@
                   data-tooltip="Símbolo da ação no Yahoo Finance. Padrão: PETR4.SA">?</span></label>
               <input id="train-symbol" type="text" value="PETR4.SA">
             </div>
-            <div class="form-group">
-              <label>Start Date <span class="tooltip-icon" data-tooltip="Data de início do histórico.">?</span></label>
-              <input id="train-start" type="date" value="2018-01-01">
+            
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0;">
+              <div>
+                <label>Start Date <span class="tooltip-icon" data-tooltip="Data de início do histórico.">?</span></label>
+                <input id="train-start" type="date" value="2018-01-01" style="width: 100%; box-sizing: border-box;">
+              </div>
+              <div>
+                <label>End Date <span class="tooltip-icon" data-tooltip="Data fim do histórico.">?</span></label>
+                <input id="train-end" type="date" value="" style="width: 100%; box-sizing: border-box;">
+              </div>
             </div>
 
             <div class="form-group">
@@ -1995,6 +2002,7 @@
       const map = {
         symbol: 'train-symbol',
         start_date: 'train-start',
+        end_date: 'train-end',
         target_mode: 'train-target',
         feature_mode: 'train-feature',
         device: 'train-device',
@@ -2209,6 +2217,7 @@
       const payload = {
         symbol: document.getElementById('train-symbol').value,
         start_date: document.getElementById('train-start').value,
+        end_date: document.getElementById('train-end').value || null,
         target_mode: document.getElementById('train-target').value,
         feature_mode: featureMode,
         selected_features: selectedFeatures,
