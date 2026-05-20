@@ -194,4 +194,4 @@ mlartifacts/
 .janitor/
 
 .gemini_security/
-models/experiments/
+models/experiments/*
