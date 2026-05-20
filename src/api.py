@@ -978,6 +978,45 @@ def predict_ohlcv(request: PredictOhlcvRequest):
     return response
 
 
+def apply_dashboard_label_overrides(html: str) -> str:
+    replacements = {
+        "Target Mode <span class=\"tooltip-icon\" data-tooltip=\"Formato da variável alvo.\">?</span>": (
+            "Alvo da previsão <span class=\"tooltip-icon\" "
+            "data-tooltip=\"O que o modelo aprende a prever. Ex.: próximo log-retorno ou próximo fechamento bruto.\">?</span>"
+        ),
+        "Feature Mode <span class=\"tooltip-icon\"\r\n                  data-tooltip=\"Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.\">?</span>": (
+            "Entradas do modelo <span class=\"tooltip-icon\"\r\n                  data-tooltip=\"Quais variáveis entram no X histórico da LSTM. Isto é diferente do alvo: o alvo é o que o modelo tenta prever. Modos multivariados são experimentais e exigem payload OHLCV na inferência.\">?</span>"
+        ),
+        "<option value=\"log_returns\">log_returns (Recomendado)</option>": (
+            "<option value=\"log_returns\">Prever próximo log-retorno (Recomendado)</option>"
+        ),
+        "<option value=\"raw_close\">raw_close</option>": (
+            "<option value=\"raw_close\">Prever próximo fechamento bruto</option>"
+        ),
+        "<option value=\"single\">single (Univariado - Produção)</option>": (
+            "<option value=\"single\">Close/retorno histórico (Univariado - Produção)</option>"
+        ),
+        "<option value=\"ohlcv\">ohlcv (Multivariado - Experimental)</option>": (
+            "<option value=\"ohlcv\">OHLCV bruto: Open, High, Low, Close, Volume (Experimental)</option>"
+        ),
+        "<option value=\"ohlcv_returns\">ohlcv_returns (Multivariado - Experimental)</option>": (
+            "<option value=\"ohlcv_returns\">OHLCV + log-retorno histórico (Experimental)</option>"
+        ),
+        "<option value=\"technical_features\">technical_features (Multivariado - Experimental)</option>": (
+            "<option value=\"technical_features\">Indicadores técnicos calculados (Experimental)</option>"
+        ),
+        "<option value=\"custom\">custom (Seleção Customizada - Experimental)</option>": (
+            "<option value=\"custom\">Features escolhidas manualmente (Experimental)</option>"
+        ),
+        "<span>Target Mode</span>": "<span>Alvo</span>",
+        "<span>Feature Mode</span>": "<span>Entradas</span>",
+        "<th>Target Mode</th>": "<th>Alvo</th>",
+    }
+    for old, new in replacements.items():
+        html = html.replace(old, new)
+    return html
+
+
 @app.get(
     "/dashboard",
     summary="Dashboard Visual Web",
@@ -994,6 +1033,7 @@ def dashboard():
     sample = {"symbol": "PETR4.SA", "closes": sample_closes}
     sample_text = json.dumps(sample, indent=2, ensure_ascii=False)
     html = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
+    html = apply_dashboard_label_overrides(html)
     html = html.replace("__SAMPLE_PAYLOAD__", sample_text)
     html = html.replace("__MODEL_DIR__", str(MODEL_DIR))
     html = html.replace("__ENABLE_TRAINING_API__", "true" if ENABLE_TRAINING_API else "false")
