@@ -1014,6 +1014,41 @@ def apply_dashboard_label_overrides(html: str) -> str:
     }
     for old, new in replacements.items():
         html = html.replace(old, new)
+
+    # Exibe o baseline persistente diretamente na tela de treinamento para comparar LSTM vs. chute ingênuo.
+    dashboard_patches = {
+        "<th>MAPE Teste</th>\r\n                  <th>RMSE Teste</th>": (
+            "<th>MAPE LSTM</th>\r\n"
+            "                  <th>MAPE Baseline</th>\r\n"
+            "                  <th>Ganho MAPE</th>\r\n"
+            "                  <th>RMSE Teste</th>"
+        ),
+        "const mape = m.test_lstm_mape_pct ? m.test_lstm_mape_pct.toFixed(2) + '%' : '-';\r\n"
+        "          const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';": (
+            "const mapeValue = Number(m.test_lstm_mape_pct);\r\n"
+            "          const baselineMapeValue = Number(m.test_baseline_mape_pct);\r\n"
+            "          const gainMapeValue = Number.isFinite(Number(m.gain_mape_pct))\r\n"
+            "            ? Number(m.gain_mape_pct)\r\n"
+            "            : (Number.isFinite(mapeValue) && Number.isFinite(baselineMapeValue) && baselineMapeValue !== 0\r\n"
+            "              ? ((baselineMapeValue - mapeValue) / baselineMapeValue) * 100\r\n"
+            "              : NaN);\r\n"
+            "\r\n"
+            "          const mape = Number.isFinite(mapeValue) ? mapeValue.toFixed(2) + '%' : '-';\r\n"
+            "          const baselineMape = Number.isFinite(baselineMapeValue) ? baselineMapeValue.toFixed(2) + '%' : '-';\r\n"
+            "          const gainMape = Number.isFinite(gainMapeValue) ? (gainMapeValue > 0 ? '+' : '') + gainMapeValue.toFixed(1) + '%' : '-';\r\n"
+            "          const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';"
+        ),
+        "<td style=\"font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}\">${mape}</td>\r\n"
+        "            <td>${rmse}</td>": (
+            "<td style=\"font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}\">${mape}</td>\r\n"
+            "            <td style=\"color: var(--muted);\">${baselineMape}</td>\r\n"
+            "            <td style=\"font-weight: 600; color: ${gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit')}\">${gainMape}</td>\r\n"
+            "            <td>${rmse}</td>"
+        ),
+    }
+    for old, new in dashboard_patches.items():
+        html = html.replace(old, new)
+    html = html.replace('colspan="6"', 'colspan="9"')
     return html
 
 
