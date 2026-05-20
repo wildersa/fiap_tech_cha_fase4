@@ -2030,13 +2030,14 @@
         let selected = [];
         if (p.selected_features) {
           try {
-            if (p.selected_features.startsWith('[')) {
-              selected = JSON.parse(p.selected_features);
+            if (p.selected_features.trim().startsWith('[')) {
+              selected = JSON.parse(p.selected_features.replace(/'/g, '"'));
             } else {
               selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
             }
           } catch (e) {
-            selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
+            // Fallback para representações em string de listas Python que podem falhar no JSON.parse
+            selected = p.selected_features.replace(/^\[|\]$/g, '').split(',').map(x => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
           }
         }
 
