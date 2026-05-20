@@ -11,7 +11,7 @@ bin/
 build/
 develop-eggs/
 dist/
-eggs/
+eggs
 lib/
 lib64/
 parts/
@@ -160,22 +160,20 @@ data/
 !data/.gitkeep
 
 # Project specific - Model artifacts
-# Git deve manter apenas metadados leves. Binários/checkpoints ficam fora do repositório.
+# Git deve manter apenas artefatos finais de inferencia em formatos portaveis.
+# Checkpoints, scalers e metadados de experimentos ficam fora do repositorio.
 models/**
 !models/
 !models/.gitkeep
 !models/**/
-!models/**/.gitkeep
-!models/**/metadata.json
-!models/**/feature_config.json
-!models/**/README.md
+!models/**/*.onnx
+!models/**/*.safetensors
 
 # Large model/checkpoint/scaler formats
 *.pt
 *.pth
 *.pkl
 *.h5
-*.onnx
 *.joblib
 
 # Logs
