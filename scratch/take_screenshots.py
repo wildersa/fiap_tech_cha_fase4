@@ -1,3 +1,13 @@
+"""
+Script para tirar screenshots das abas do dashboard.
+
+Para rodar:
+poetry run python scratch/take_screenshots.py
+
+Requer: poetry install --with=dev
+
+"""
+
 import asyncio
 import os
 from playwright.async_api import async_playwright
