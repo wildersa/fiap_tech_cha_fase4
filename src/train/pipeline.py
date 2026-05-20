@@ -1,270 +1,28 @@
-"""
-Pipeline completo de treinamento para o Tech Challenge Fase 4.
-
-Versao dinamica (Roteiro de Testes): Suporta multiples feature_modes e target_modes.
-Normalizacao via StandardScaler separados (Features e Target).
-"""
-
 from __future__ import annotations
 
-import sys
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-except Exception:
-    pass
-
-import logging
-
-# Configurar loggers para evitar avisos de exportação e compatibilidade no terminal
-logging.getLogger("torch.onnx").setLevel(logging.ERROR)
-logging.getLogger("torch").setLevel(logging.ERROR)
-
-import argparse
-import copy
-import json
-import random
 import os
 import shutil
-from dataclasses import asdict, dataclass
+import copy
+import json
+import argparse
+from dataclasses import asdict
 from pathlib import Path
 
 import joblib
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from torch.utils.data import DataLoader, TensorDataset
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-from src.data_loader import add_features, load_csv, load_yfinance
+import src.train
 from src.model import StockLSTM
-from src.features import FEATURE_PRESETS, FEATURE_REGISTRY
-
-
-@dataclass
-class TrainConfig:
-    symbol: str = "PETR4.SA"
-    start_date: str = "2018-01-01"
-    end_date: str | None = None
-    window_size: int = 60
-    train_ratio: float = 0.70
-    val_ratio: float = 0.15
-    hidden_size: int = 64
-    num_layers: int = 1
-    dropout: float = 0.20
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-4
-    batch_size: int = 32
-    max_epochs: int = 150
-    patience: int = 20
-    grad_clip: float | None = 1.0
-    output_dir: str = os.getenv("MODEL_DIR", "models/lstm_petr4")
-    seed: int = 42
-    target_mode: str = "log_returns"
-    feature_mode: str = "single"
-    feature_scaler_type: str = "standard"
-    target_scaler_type: str = "standard"
-    device: str = "auto"
-    parent_run_id: str | None = None
-    selected_features: list[str] | None = None
-    feature_preset: str | None = None
-
-
-def resolve_target_column(target_mode: str) -> str:
-    mapping = {"log_returns": "Log_Return", "raw_close": "Close", "returns": "Return"}
-    if target_mode not in mapping:
-        raise ValueError(f"Target mode desconhecido: {target_mode}")
-    return mapping[target_mode]
-
-
-def resolve_feature_columns(cfg: TrainConfig, target_col: str) -> list[str]:
-    valid_names = {f["name"] for f in FEATURE_REGISTRY}
-    
-    if cfg.feature_mode == "single":
-        return [target_col]
-    elif cfg.feature_mode == "ohlcv":
-        return ["Open", "High", "Low", "Close", "Volume"]
-    elif cfg.feature_mode == "ohlcv_returns":
-        return ["Open", "High", "Low", "Close", "Volume", "Log_Return"]
-    elif cfg.feature_mode == "technical_features":
-        preset = cfg.feature_preset or "technical_complete"
-        if preset not in FEATURE_PRESETS:
-            raise ValueError(f"Preset desconhecido: {preset}")
-        features = cfg.selected_features or FEATURE_PRESETS[preset]
-    elif cfg.feature_mode == "custom":
-        if not cfg.selected_features:
-            raise ValueError("O modo 'custom' exige que 'selected_features' nao esteja vazio.")
-        features = cfg.selected_features
-    else:
-        raise ValueError(f"Feature mode desconhecido: {cfg.feature_mode}")
-        
-    invalid = [f for f in features if f not in valid_names]
-    if invalid:
-        raise ValueError(f"Features invalidas/desconhecidas no registro: {invalid}")
-    return list(features)
-
-
-
-def set_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-
-
-def create_windowed_sequences(
-    df: pd.DataFrame,
-    window_size: int,
-    feature_cols: list[str],
-    target_col: str,
-    train_end_row: int,
-    feature_scaler_type: str = "standard",
-    target_scaler_type: str = "standard"
-):
-    X_values = df[feature_cols].values.astype(np.float32)
-    y_values = df[target_col].values.astype(np.float32).reshape(-1, 1)
-    
-    closes = df["Close"].values.astype(np.float32)
-    dates = df.index.to_numpy()
-
-    def get_scaler(scaler_type: str):
-        if scaler_type == "minmax":
-            return MinMaxScaler()
-        elif scaler_type == "robust":
-            return RobustScaler()
-        else:
-            return StandardScaler()
-
-    feature_scaler = get_scaler(feature_scaler_type)
-    feature_scaler.fit(X_values[:train_end_row])
-    scaled_X = feature_scaler.transform(X_values).astype(np.float32)
-    
-    target_scaler = get_scaler(target_scaler_type)
-    target_scaler.fit(y_values[:train_end_row])
-    scaled_y = target_scaler.transform(y_values).astype(np.float32)
-
-    X, y, last_closes, target_closes, target_dates, target_rows = [], [], [], [], [], []
-
-    for i in range(window_size, len(df)):
-        X.append(scaled_X[i - window_size : i])
-        y.append(scaled_y[i, 0])
-        last_closes.append(closes[i - 1])
-        target_closes.append(closes[i])
-        target_dates.append(dates[i])
-        target_rows.append(i)
-
-    return (
-        np.asarray(X, dtype=np.float32),
-        np.asarray(y, dtype=np.float32).reshape(-1, 1),
-        np.asarray(last_closes, dtype=np.float32),
-        np.asarray(target_dates),
-        np.asarray(target_rows),
-        feature_scaler,
-        target_scaler
-    )
-
-
-def make_loader(X: np.ndarray, y: np.ndarray, batch_size: int, shuffle: bool) -> DataLoader:
-    dataset = TensorDataset(torch.from_numpy(X), torch.from_numpy(y))
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-
-
-def predict_numpy(model: nn.Module, X: np.ndarray, device: torch.device) -> np.ndarray:
-    model.eval()
-    preds = []
-    loader = DataLoader(TensorDataset(torch.from_numpy(X)), batch_size=256, shuffle=False)
-    with torch.no_grad():
-        for (xb,) in loader:
-            preds.append(model(xb.to(device)).cpu().numpy())
-    return np.vstack(preds).reshape(-1)
-
-
-def regression_metrics(y_true, y_pred) -> dict:
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
-    return {
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mape_pct": float(np.mean(np.abs((y_true - y_pred) / y_true)) * 100),
-    }
-
-
-def directional_accuracy(y_true, y_pred, last_close) -> float:
-    true_dir = np.sign(np.asarray(y_true) - np.asarray(last_close))
-    pred_dir = np.sign(np.asarray(y_pred) - np.asarray(last_close))
-    return float(np.mean(true_dir == pred_dir) * 100)
-
-
-class NpEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, (np.integer, np.floating)):
-            return obj.item()
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if hasattr(obj, "isoformat"):
-            return obj.isoformat()
-        return super().default(obj)
-
-
-def write_json(path: str | Path, payload: dict) -> None:
-    Path(path).write_text(json.dumps(payload, cls=NpEncoder, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def plot_performance(
-    output_dir: Path,
-    df_feat: pd.DataFrame,
-    train_end: int,
-    val_end: int,
-    dates_test,
-    y_true,
-    y_pred,
-    metrics: dict,
-    symbol: str,
-    feature_mode: str,
-    target_mode: str
-) -> None:
-    plt.figure(figsize=(14, 6))
-    
-    plt.plot(
-        df_feat.iloc[:train_end].index, 
-        df_feat.iloc[:train_end]["Close"], 
-        color="#1F2933", label="Treino", linewidth=1.4
-    )
-    plt.plot(
-        df_feat.iloc[train_end:val_end].index, 
-        df_feat.iloc[train_end:val_end]["Close"], 
-        color="#8A94A6", label="Validacao", linewidth=1.4
-    )
-    
-    plt.plot(pd.to_datetime(dates_test), y_true, color="#1455D9", label="Teste real", linewidth=1.4)
-    plt.plot(pd.to_datetime(dates_test), y_pred, color="#D62F2F", label="Previsao LSTM", linewidth=1.4)
-    
-    plt.title(f"Performance do modelo LSTM [{feature_mode} | {target_mode}] - {symbol}")
-    plt.xlabel("Data")
-    plt.ylabel("Preco de fechamento")
-    plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.45)
-    plt.legend()
-    
-    text = (
-        f"MAE: {metrics['lstm_test']['mae']:.4f}\n"
-        f"RMSE: {metrics['lstm_test']['rmse']:.4f}\n"
-        f"MAPE: {metrics['lstm_test']['mape_pct']:.2f}%"
-    )
-    plt.gca().text(0.99, 0.03, text, transform=plt.gca().transAxes, ha="right", va="bottom", bbox={"facecolor": "white", "alpha": 0.9})
-    plt.tight_layout()
-    plt.savefig(output_dir / "model_performance.png", dpi=180)
-    plt.close()
+from src.train.config import TrainConfig, resolve_target_column, resolve_feature_columns
+from src.train.data_prep import set_seed, create_windowed_sequences, make_loader
+from src.train.trainer import regression_metrics, directional_accuracy, predict_numpy
+from src.train.artifacts import write_json, plot_performance
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict:
@@ -275,11 +33,11 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
     if csv_path is None:
         csv_path = os.getenv("DATA_CSV_PATH") or None
 
-    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
         if not mlflow_path.is_absolute():
-            mlflow_path = Path(__file__).resolve().parent.parent / mlflow_path
+            mlflow_path = Path(__file__).resolve().parent.parent.parent / mlflow_path
         mlflow_uri = mlflow_path.as_uri()
     mlflow.set_tracking_uri(mlflow_uri)
 
@@ -291,11 +49,11 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             mlflow.set_tag("derived_from", cfg.parent_run_id)
         mlflow.log_params(asdict(cfg))
 
-        df_raw = load_csv(csv_path) if csv_path else load_yfinance(cfg.symbol, cfg.start_date, cfg.end_date)
+        df_raw = src.train.load_csv(csv_path) if csv_path else src.train.load_yfinance(cfg.symbol, cfg.start_date, cfg.end_date)
         data_source = str(csv_path) if csv_path else "yfinance"
         mlflow.log_param("data_source", data_source)
 
-        df_feat = add_features(df_raw)
+        df_feat = src.train.add_features(df_raw)
         
         target_col = resolve_target_column(cfg.target_mode)
         feature_cols = resolve_feature_columns(cfg, target_col)
@@ -515,7 +273,6 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         # MLOps: Champion/Challenger Promotion Evaluation
         is_better = True
         
-        # 1. Impede promoção automática de modelos multivariados/experimentais para não quebrar a API univariada
         if cfg.feature_mode != "single":
             print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos univariados (single) sao elegiveis para promocao automatica na producao.")
             is_better = False
@@ -527,7 +284,6 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         if is_better and champion_metadata_path.exists() and champion_metrics_path.exists():
             try:
                 champ_metrics = json.loads(champion_metrics_path.read_text(encoding="utf-8"))
-                # Prioriza o MAPE de validação para comparação de promoção
                 champion_mape = (
                     champ_metrics.get("lstm_val", {}).get("mape_pct") or
                     champ_metrics.get("val_lstm_mape_pct") or
@@ -555,7 +311,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         # Exportando pesos PyTorch (Legado/Compatibilidade)
         torch.save(model.state_dict(), save_dir / "model.pt")
 
-        # Exportando pesos de forma segura usando Safetensors (imune a RCEs baseados em pickle)
+        # Exportando pesos de forma segura usando Safetensors
         try:
             from safetensors.torch import save_file
             save_file(model.state_dict(), save_dir / "model.safetensors")
@@ -563,10 +319,9 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         except Exception as e:
             print(f"Aviso: Nao foi possivel salvar os pesos em formato safetensors: {e}")
 
-        # MLOps: Compilacao para formato estatico ONNX (Production Ready)
+        # MLOps: Compilacao para formato estatico ONNX
         dummy_input = torch.randn(1, cfg.window_size, X_train.shape[2]).to(device)
         model.eval()
-        # Usando o novo mecanismo de dynamic_shapes recomendado para PyTorch 2.x
         batch_dim = torch.export.Dim("batch_size", min=1, max=2048)
         dynamic_shapes = {
             "x": {0: batch_dim}
@@ -736,7 +491,3 @@ def main() -> None:
         feature_preset=args.feature_preset,
     )
     run_training_pipeline(cfg, args.csv)
-
-
-if __name__ == "__main__":
-    main()

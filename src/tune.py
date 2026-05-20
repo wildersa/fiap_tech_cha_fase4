@@ -18,6 +18,8 @@ import random
 from pathlib import Path
 import mlflow
 from src.train import TrainConfig, run_training_pipeline
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,7 +36,7 @@ def main() -> None:
     args = parse_args()
 
     # Configura MLflow
-    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
         if not mlflow_path.is_absolute():

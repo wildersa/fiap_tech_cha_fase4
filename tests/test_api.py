@@ -193,8 +193,8 @@ def test_train_endpoint_invalid_features():
     assert "Features invalidas/desconhecidas no registro" in response.json()["detail"]
 
 
-@patch("src.api.load_preprocessor")
-@patch("src.api.load_predictor")
+@patch("src.api.load_preprocessor_multi")
+@patch("src.api.load_predictor_multi")
 def test_predict_ohlcv_success(mock_load_pred, mock_load_prep, mock_preprocessor):
     mock_load_prep.return_value = mock_preprocessor
 

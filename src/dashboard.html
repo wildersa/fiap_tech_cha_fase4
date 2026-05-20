@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -22,13 +23,13 @@
       --accent: #8b5cf6;
       --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
-    
-    * { 
-      box-sizing: border-box; 
-      margin: 0; 
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
       padding: 0;
     }
-    
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg);
@@ -162,15 +163,16 @@
       align-items: center;
       gap: 5px;
     }
-    
+
     .main-content {
       flex-grow: 1;
       margin-left: 220px;
       padding: 20px 30px;
       max-width: 1600px;
-      min-width: 0; /* prevent layout break */
+      min-width: 0;
+      /* prevent layout break */
     }
-    
+
     h2 {
       font-size: 15px;
       font-weight: 600;
@@ -178,17 +180,26 @@
       letter-spacing: -0.2px;
       margin-bottom: 10px;
     }
-    
+
     p {
       color: var(--muted);
       margin-bottom: 10px;
       font-size: 13px;
       line-height: 1.4;
     }
-    
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .home-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; }
-    
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 20px;
+    }
+
     .panel {
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
@@ -196,14 +207,14 @@
       padding: 20px;
       box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.4);
     }
-    
+
     .cards {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       margin-top: 16px;
     }
-    
+
     .card {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--panel-border);
@@ -215,30 +226,32 @@
       overflow: hidden;
       transition: all 0.2s ease;
     }
-    
+
     .card:hover {
       transform: translateY(-1px);
       border-color: rgba(59, 130, 246, 0.25);
       box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.15);
     }
-    
-    .card span { 
-      font-size: 10px; 
-      color: var(--muted); 
-      margin-bottom: 4px; 
-      text-transform: uppercase; 
-      letter-spacing: 0.5px; 
+
+    .card span {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       font-weight: 700;
     }
-    
-    .card strong { 
-      font-size: 16px; 
-      color: #ffffff; 
-      font-weight: 700; 
+
+    .card strong {
+      font-size: 16px;
+      color: #ffffff;
+      font-weight: 700;
       letter-spacing: -0.3px;
     }
-    
-    textarea, input, select {
+
+    textarea,
+    input,
+    select {
       width: 100%;
       background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--panel-border);
@@ -250,16 +263,20 @@
       resize: vertical;
       transition: all 0.2s ease;
     }
-    
-    textarea { height: 160px; }
-    
-    input:focus, select:focus, textarea:focus {
+
+    textarea {
+      height: 160px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
       background: rgba(0, 0, 0, 0.4);
     }
-    
+
     button.primary {
       background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
       color: white;
@@ -272,19 +289,19 @@
       box-shadow: 0 3px 8px rgba(59, 130, 246, 0.15);
       transition: all 0.2s ease;
     }
-    
-    button.primary:hover { 
+
+    button.primary:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
     }
-    
-    button.primary:disabled { 
-      opacity: 0.5; 
-      cursor: not-allowed; 
+
+    button.primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
       transform: none;
       box-shadow: none;
     }
-    
+
     .error {
       margin-top: 12px;
       padding: 10px;
@@ -295,7 +312,7 @@
       font-size: 12px;
       border-radius: 6px;
     }
-    
+
     pre {
       background: rgba(0, 0, 0, 0.3);
       padding: 12px;
@@ -307,39 +324,41 @@
       color: #94a3b8;
       line-height: 1.5;
     }
-    
-    .hidden { display: none !important; }
-    
-    table { 
-      width: 100%; 
-      border-collapse: separate; 
+
+    .hidden {
+      display: none !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
       border-spacing: 0;
-      margin-top: 12px; 
-      font-size: 12px; 
+      margin-top: 12px;
+      font-size: 12px;
     }
-    
-    th { 
-      text-align: left; 
-      padding: 8px 12px; 
-      color: var(--muted); 
-      border-bottom: 2px solid var(--panel-border); 
-      font-weight: 600; 
-      text-transform: uppercase; 
-      font-size: 10px; 
-      letter-spacing: 0.5px; 
+
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      color: var(--muted);
+      border-bottom: 2px solid var(--panel-border);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
     }
-    
-    td { 
-      padding: 8px 12px; 
-      border-bottom: 1px solid var(--panel-border); 
-      color: var(--text); 
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--panel-border);
+      color: var(--text);
       transition: background-color 0.2s ease;
     }
-    
-    tr:hover td { 
-      background: rgba(255, 255, 255, 0.01); 
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.01);
     }
-    
+
     .status-badge {
       padding: 3px 8px;
       border-radius: 4px;
@@ -352,7 +371,7 @@
       align-items: center;
       gap: 5px;
     }
-    
+
     .status-badge::before {
       content: '';
       display: inline-block;
@@ -361,13 +380,13 @@
       border-radius: 50%;
       background: currentColor;
     }
-    
+
     .status-failed {
       background: rgba(239, 68, 68, 0.1);
       color: var(--danger);
       border: 1px solid rgba(239, 68, 68, 0.15);
     }
-    
+
     .update-btn {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--panel-border);
@@ -379,12 +398,12 @@
       font-weight: 600;
       transition: all 0.2s ease;
     }
-    
-    .update-btn:hover { 
-      background: rgba(255, 255, 255, 0.04); 
+
+    .update-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
       border-color: var(--primary);
     }
-    
+
     .tooltip-icon {
       display: inline-flex;
       align-items: center;
@@ -401,7 +420,7 @@
       position: relative;
       font-weight: 700;
     }
-    
+
     .tooltip-icon::after {
       content: attr(data-tooltip);
       position: absolute;
@@ -422,25 +441,43 @@
       visibility: hidden;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 20px -5px rgba(0,0,0,0.6);
+      box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.6);
       z-index: 10;
       pointer-events: none;
     }
-    
+
     .tooltip-icon:hover::after {
       opacity: 1;
       visibility: visible;
       transform: translateX(-50%) translateY(-4px);
     }
-    
+
     @media (max-width: 900px) {
-      .app-container { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; }
-      .main-content { margin-left: 0; padding: 16px; }
-      .grid, .home-grid { grid-template-columns: 1fr; }
-      .cards { grid-template-columns: 1fr; }
+      .app-container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 16px;
+      }
+
+      .grid,
+      .home-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
     }
-  
+
     .form-group {
       display: flex;
       justify-content: space-between;
@@ -451,10 +488,12 @@
       border: 1px solid var(--panel-border);
       transition: all 0.2s ease;
     }
+
     .form-group:hover {
-      border-color: rgba(255,255,255,0.1);
+      border-color: rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.04);
     }
+
     .form-group label {
       margin-bottom: 0 !important;
       font-size: 12px;
@@ -464,14 +503,16 @@
       align-items: center;
       gap: 6px;
     }
-    .form-group input, .form-group select {
+
+    .form-group input,
+    .form-group select {
       width: 160px !important;
       margin: 0 !important;
       padding: 6px 10px !important;
       font-size: 12px !important;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.4);
     }
-    
+
     .pipeline-flow {
       display: flex;
       align-items: center;
@@ -479,15 +520,16 @@
       gap: 8px;
       margin-bottom: 24px;
       padding: 16px;
-      background: rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.2);
       border-radius: 8px;
       border: 1px solid var(--panel-border);
     }
+
     .pipeline-node {
       flex: 1;
       text-align: center;
       padding: 10px 4px;
-      background: rgba(0,0,0,0.3);
+      background: rgba(0, 0, 0, 0.3);
       border: 1px solid var(--panel-border);
       border-radius: 6px;
       font-size: 11px;
@@ -495,30 +537,34 @@
       color: var(--muted);
       transition: all 0.3s ease;
     }
+
     .pipeline-node.active {
       background: rgba(59, 130, 246, 0.1);
       border-color: var(--primary);
       color: #fff;
       box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
     }
+
     .pipeline-node.done {
       background: rgba(16, 185, 129, 0.1);
       border-color: var(--success);
       color: var(--success);
     }
+
     .pipeline-node.error {
       background: rgba(239, 68, 68, 0.1);
       border-color: var(--danger);
       color: var(--danger);
     }
+
     .pipeline-arrow {
       color: var(--panel-border);
       font-size: 14px;
       font-weight: bold;
     }
-
   </style>
 </head>
+
 <body>
   <div class="app-container">
     <aside class="sidebar">
@@ -526,7 +572,7 @@
         <h1>StockLSTM</h1>
         <div class="muted">Advanced Intelligence</div>
       </div>
-      
+
       <nav class="sidebar-nav">
         <div class="nav-section">Navegação</div>
         <button id="tab-home" class="nav-item active" onclick="showTab('home')">
@@ -535,13 +581,13 @@
         <button id="tab-inference" class="nav-item" onclick="showTab('inference')">
           <span class="icon">🔮</span> Inferência
         </button>
-        <button id="tab-telemetry" class="nav-item" onclick="showTab('telemetry')">
-          <span class="icon">📊</span> Telemetria
-        </button>
         <button id="tab-train" class="nav-item" onclick="showTab('train')">
           <span class="icon">⚙️</span> Treino & MLflow
         </button>
-        
+        <button id="tab-telemetry" class="nav-item" onclick="showTab('telemetry')">
+          <span class="icon">📊</span> Telemetria
+        </button>
+
         <div class="nav-section">Atalhos API</div>
         <a href="/docs" target="_blank" class="nav-item">
           <span class="icon">📖</span> Swagger Docs
@@ -556,10 +602,11 @@
           <span class="icon">📈</span> Prometheus
         </a>
       </nav>
-      
+
       <div class="sidebar-footer">
         <div class="sys-badge">
-          <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--success); box-shadow: 0 0 5px var(--success);"></span>
+          <span
+            style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--success); box-shadow: 0 0 5px var(--success);"></span>
           ONNX Prod
         </div>
       </div>
@@ -567,414 +614,566 @@
 
     <main class="main-content">
       <div class="muted" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-        <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success);"></span>
+        <span
+          style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success);"></span>
         Modelo ativo | Ativo: <code>__MODEL_DIR__</code>
       </div>
 
-    <section id="home" style="display: flex; flex-direction: column; gap: 20px;">
-      <!-- Banner Superior: Arquitetura do Modelo -->
-      <div class="panel">
-        <h2 style="margin-top: 0; margin-bottom: 8px; font-size: 16px;">Arquitetura do Modelo</h2>
-        <p style="margin: 0 0 12px 0; line-height: 1.4; color: #cbd5e1; font-size: 13px;">
-          Esta API utiliza uma rede neural LSTM avançada, projetada para extrair padrões temporais de séries financeiras. O pipeline multivariado (V8) processa preços e injeta indicadores estacionários para maximizar a assertividade.
-          No momento da inferência, o usuário envia os fechamentos recentes. A API normaliza os dados usando a abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e decodifica a previsão para o próximo preço de fechamento.
-        </p>
-        <div class="cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-          <div class="card" style="padding: 8px 10px;"><span>Entrada</span><strong>Série OHLCV</strong></div>
-          <div class="card" style="padding: 8px 10px;"><span>Alvo</span><strong>Target Ratio</strong></div>
-          <div class="card" style="padding: 8px 10px;"><span>Saída</span><strong>Preço Previsto</strong></div>
-        </div>
-      </div>
-
-      <!-- Título de Seção do Model Card -->
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model Card</h2>
-          <div class="toggle-group" style="display: inline-flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px; gap: 4px;">
-            <button id="btn-mc-single" onclick="changeModelCardView('single')" style="background: var(--accent); color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Univariado (Single)</button>
-            <button id="btn-mc-multi" onclick="changeModelCardView('multi')" style="background: transparent; color: #a0aec0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Multivariado (Multi)</button>
+      <section id="home" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Banner Superior: Arquitetura do Modelo -->
+        <div class="panel">
+          <h2 style="margin-top: 0; margin-bottom: 8px; font-size: 16px;">Arquitetura do Modelo</h2>
+          <p style="margin: 0 0 12px 0; line-height: 1.4; color: #cbd5e1; font-size: 13px;">
+            Esta API utiliza uma rede neural LSTM avançada, projetada para extrair padrões temporais de séries
+            financeiras. O pipeline multivariado (V8) processa preços e injeta indicadores estacionários para maximizar
+            a assertividade.
+            No momento da inferência, o usuário envia os fechamentos recentes. A API normaliza os dados usando a
+            abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e
+            decodifica a previsão para o próximo preço de fechamento.
+          </p>
+          <div class="cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <div class="card" style="padding: 8px 10px;"><span>Entrada</span><strong>Série OHLCV</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>Alvo</span><strong>Target Ratio</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>Saída</span><strong>Preço Previsto de Fechamento</strong>
+            </div>
           </div>
-          <span id="mc-risk-rating" class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium Risk</span>
         </div>
-        <span class="status-badge" id="mc-status" style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Verificando...</span>
-      </div>
 
-      <!-- Conteúdo do Model Card em 2 Colunas Equilibradas -->
-      <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start;">
-        
-        <!-- Coluna Esquerda: Overview, Training e Additional Info -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-          
-          <!-- Seção 1: Model Overview -->
-          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
-            <h3 style="font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 12px;">📋</span> 1. Model Overview
-            </h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-              <div>
-                <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome do Modelo</span>
-                <strong id="mc-name" style="font-size: 13px; color: #fff;">-</strong>
+        <!-- Título de Seção do Model Card -->
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model
+              Card</h2>
+            <div class="toggle-group"
+              style="display: inline-flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px; gap: 4px;">
+              <button id="btn-mc-single" onclick="changeModelCardView('single')"
+                style="background: var(--accent); color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Univariado
+                (Single)</button>
+              <button id="btn-mc-multi" onclick="changeModelCardView('multi')"
+                style="background: transparent; color: #a0aec0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Multivariado
+                (Multi)</button>
+            </div>
+            <span id="mc-risk-rating" class="status-badge"
+              style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium
+              Risk</span>
+          </div>
+          <span class="status-badge" id="mc-status"
+            style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Verificando...</span>
+        </div>
+
+        <!-- Conteúdo do Model Card em 2 Colunas Equilibradas -->
+        <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: start;">
+
+          <!-- Coluna Esquerda: Overview, Training e Additional Info -->
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+
+            <!-- Seção 1: Model Overview -->
+            <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+              <h3
+                style="font-size: 11px; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px;">📋</span> 1. Model Overview
+              </h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                  <span class="muted"
+                    style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Nome do
+                    Modelo</span>
+                  <strong id="mc-name" style="font-size: 13px; color: #fff;">-</strong>
+                </div>
+                <div>
+                  <span class="muted"
+                    style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Versão</span>
+                  <strong id="mc-version" style="font-size: 13px; color: #fff;">-</strong>
+                </div>
               </div>
               <div>
-                <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Versão</span>
-                <strong id="mc-version" style="font-size: 13px; color: #fff;">-</strong>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Descrição</span>
+                <p id="mc-description" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+              </div>
+              <div>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Intended Uses
+                  (Uso Recomendado)</span>
+                <p id="mc-intended-uses"
+                  style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1; font-style: italic;">-</p>
               </div>
             </div>
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Descrição</span>
-              <p id="mc-description" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+
+            <!-- Seção 2: Training Details -->
+            <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+              <h3
+                style="font-size: 11px; color: var(--primary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px;">🏋️‍♂️</span> 2. Training Details
+              </h3>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Ticker</span>
+                  <strong id="mc-symbol" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Lookback Window</span>
+                  <strong id="mc-window" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Target Mode</span>
+                  <strong id="mc-target" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Feature Mode</span>
+                  <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Feature Scaler</span>
+                  <strong id="mc-feature-scaler" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Target Scaler</span>
+                  <strong id="mc-target-scaler" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Data Source</span>
+                  <strong id="mc-data-source" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>MLflow Run ID</span>
+                  <strong id="mc-run-id"
+                    style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
+                </div>
+              </div>
+              <div>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Observações de
+                  Treino</span>
+                <p id="mc-observations" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+              </div>
             </div>
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Intended Uses (Uso Recomendado)</span>
-              <p id="mc-intended-uses" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1; font-style: italic;">-</p>
+
+            <!-- Seção 4: Additional Information -->
+            <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
+              <h3
+                style="font-size: 11px; color: #f59e0b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px;">⚠️</span> 4. Additional Information
+              </h3>
+              <div>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Considerações
+                  Éticas e Responsabilidade</span>
+                <p id="mc-ethical" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+              </div>
+              <div>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Limitações e
+                  Recomendações (Caveats)</span>
+                <p id="mc-caveats" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+              </div>
             </div>
+
           </div>
 
-          <!-- Seção 2: Training Details -->
-          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
-            <h3 style="font-size: 11px; color: var(--primary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 12px;">🏋️‍♂️</span> 2. Training Details
-            </h3>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Ticker</span>
-                <strong id="mc-symbol" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Lookback Window</span>
-                <strong id="mc-window" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Target Mode</span>
-                <strong id="mc-target" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Feature Mode</span>
-                <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Feature Scaler</span>
-                <strong id="mc-feature-scaler" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Target Scaler</span>
-                <strong id="mc-target-scaler" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>Data Source</span>
-                <strong id="mc-data-source" style="font-size: 13px;">-</strong>
-              </div>
-              <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                <span>MLflow Run ID</span>
-                <strong id="mc-run-id" style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
-              </div>
-            </div>
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Observações de Treino</span>
-              <p id="mc-observations" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
-            </div>
-          </div>
+          <!-- Coluna Direita: Evaluation Details (Metrics, Artifacts e Gráfico) -->
+          <div style="display: flex; flex-direction: column; gap: 20px;">
 
-          <!-- Seção 4: Additional Information -->
-          <div class="panel" style="display: flex; flex-direction: column; gap: 12px; padding: 16px;">
-            <h3 style="font-size: 11px; color: #f59e0b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 12px;">⚠️</span> 4. Additional Information
-            </h3>
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Considerações Éticas e Responsabilidade</span>
-              <p id="mc-ethical" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
+            <div class="panel" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+              <h3
+                style="font-size: 11px; color: var(--success); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px;">📊</span> 3. Evaluation Details
+              </h3>
+
+              <div>
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dataset de
+                  Teste</span>
+                <p id="mc-eval-dataset" style="font-size: 12px; margin: 0; color: #cbd5e1; font-weight: 500;">-</p>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape"
+                    style="color: var(--success); font-size: 13px;">-</strong></div>
+                <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae"
+                    style="font-size: 13px;">-</strong></div>
+                <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse"
+                    style="font-size: 13px;">-</strong></div>
+                <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir"
+                    style="color: var(--success); font-size: 13px;">-</strong></div>
+              </div>
+
+              <div
+                style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--panel-border); padding-top: 12px;">
+                <span class="muted" style="font-size: 9px; text-transform: uppercase;">Artefatos:</span>
+                <span id="mc-art-onnx" class="status-badge" style="font-size: 9px;">ONNX</span>
+                <span id="mc-art-safetensors" class="status-badge" style="font-size: 9px;">Safetensors</span>
+                <span id="mc-art-preproc" class="status-badge" style="font-size: 9px;">Preprocessor</span>
+                <span id="mc-art-meta" class="status-badge" style="font-size: 9px;">Metadata</span>
+              </div>
+
+              <div
+                style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; text-align: center; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span class="muted" style="font-size: 9px; text-transform: uppercase;">Gráfico de Avaliação
+                    (Treino)</span>
+                  <button id="btn-zoom-image" onclick="openImageModal()"
+                    style="background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; display: none; transition: 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.05)'">🔍 Ampliar</button>
+                </div>
+                <img id="mc-image" onclick="openImageModal()" src="" alt="Performance do Modelo"
+                  style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto; cursor: pointer; transition: transform 0.2s;"
+                  onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1.0)'" />
+              </div>
             </div>
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Limitações e Recomendações (Caveats)</span>
-              <p id="mc-caveats" style="font-size: 12px; line-height: 1.4; margin: 0; color: #cbd5e1;">-</p>
-            </div>
+
           </div>
 
         </div>
+      </section>
 
-        <!-- Coluna Direita: Evaluation Details (Metrics, Artifacts e Gráfico) -->
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-          
-          <div class="panel" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
-            <h3 style="font-size: 11px; color: var(--success); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin: 0; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 12px;">📊</span> 3. Evaluation Details
-            </h3>
-            
-            <div>
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Dataset de Teste</span>
-              <p id="mc-eval-dataset" style="font-size: 12px; margin: 0; color: #cbd5e1; font-weight: 500;">-</p>
+      <section id="inference" class="grid hidden">
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h2 style="margin: 0; font-size: 16px;">Payload de Inferência</h2>
+            <div class="toggle-group" style="display: inline-flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); gap: 4px;">
+              <button id="btn-inf-single" onclick="changeInferenceModel('single')" style="background: var(--accent); color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Univariado (Single)</button>
+              <button id="btn-inf-multi" onclick="changeInferenceModel('multi')" style="background: transparent; color: #a0aec0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Multivariado (Multi)</button>
             </div>
-
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-              <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape" style="color: var(--success); font-size: 13px;">-</strong></div>
-              <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae" style="font-size: 13px;">-</strong></div>
-              <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse" style="font-size: 13px;">-</strong></div>
-              <div class="card" style="padding: 8px 10px;"><span>Acurácia Direcional</span><strong id="mc-dir" style="color: var(--success); font-size: 13px;">-</strong></div>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--panel-border); padding-top: 12px;">
-              <span class="muted" style="font-size: 9px; text-transform: uppercase;">Artefatos:</span>
-              <span id="mc-art-onnx" class="status-badge" style="font-size: 9px;">ONNX</span>
-              <span id="mc-art-safetensors" class="status-badge" style="font-size: 9px;">Safetensors</span>
-              <span id="mc-art-preproc" class="status-badge" style="font-size: 9px;">Preprocessor</span>
-              <span id="mc-art-meta" class="status-badge" style="font-size: 9px;">Metadata</span>
-            </div>
-
-            <div style="background: rgba(0,0,0,0.15); border-radius: 6px; border: 1px solid var(--panel-border); padding: 12px; text-align: center;">
-              <span class="muted" style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 8px; text-align: left;">Gráfico de Avaliação (Treino)</span>
-              <img id="mc-image" src="" alt="Performance do Modelo" style="max-width: 100%; height: auto; border-radius: 4px; display: none; margin: 0 auto;" />
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-    </section>
-
-    <section id="inference" class="grid hidden">
-      <div class="panel">
-        <h2>Payload de Inferência</h2>
-        <p class="muted">Insira a série cronológica de fechamentos (JSON).</p>
-        <textarea id="payload" spellcheck="false" style="height: 120px; font-size: 11px;">__SAMPLE_PAYLOAD__</textarea>
-        <div style="margin-top: 10px;">
-          <button class="primary" style="width: 100%;" onclick="runPrediction()">Executar Inferência</button>
-        </div>
-        <div id="error" class="error hidden"></div>
-      </div>
-      <div class="panel">
-        <h2>Resultados da Projeção</h2>
-        <div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
-          <div class="card" style="padding: 6px 10px;"><span>Último Fechamento</span><strong id="lastClose" style="color: #cbd5e1; font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 6px 10px;"><span>Previsão LSTM</span><strong id="predictedClose" style="color: var(--accent-hover); font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 6px 10px;"><span>Direção Prevista</span><strong id="direction" style="font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 6px 10px;"><span>Retorno Prox. Dia</span><strong id="returnPct" style="font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 6px 10px;"><span>Variação Absoluta</span><strong id="diffAbs" style="font-size: 13px;">-</strong></div>
-          <div class="card" style="padding: 6px 10px;"><span>Tempo de Resposta</span><strong id="latency" style="color: var(--success); font-size: 13px;">-</strong></div>
-        </div>
-        <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--panel-border);">
-          <div style="position: relative; height: 150px; width: 100%;">
-            <canvas id="priceChart"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="telemetry" class="panel hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 style="margin: 0;">Telemetria do Servidor</h2>
-        <button class="update-btn" onclick="loadTelemetry()">Atualizar Dados</button>
-      </div>
-      <p class="muted" style="margin-bottom: 8px;">Métricas em tempo real mantidas em memória para fins de demonstração (Vercel). Acompanhe latência da API e utilização de recursos.</p>
-      <p class="muted" style="font-size: 11px; margin-bottom: 24px; color: var(--muted); font-style: italic;">Nota: O valor de CPU representa uma amostra aproximada do momento da requisição e pode variar conforme o ambiente serverless. Histórico é reiniciado a cada cold start.</p>
-      
-      <div class="cards" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="card"><span>Total Requisições</span><strong id="tel-reqs">-</strong></div>
-        <div class="card"><span>Taxa de Erro</span><strong id="tel-errs" style="color: var(--danger);">-</strong></div>
-        <div class="card"><span>Uptime</span><strong id="tel-uptime">-</strong></div>
-        <div class="card"><span>Latência Média</span><strong id="tel-lat">-</strong></div>
-      </div>
-
-      <div class="grid">
-        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
-          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Uso de CPU & Memória (MB)</h3>
-          <div style="position: relative; height: 180px; width: 100%;">
-            <canvas id="resourceChart"></canvas>
-          </div>
-        </div>
-        <div style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
-          <h3 style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Latência da API (ms)</h3>
-          <div style="position: relative; height: 180px; width: 100%;">
-            <canvas id="latencyChart"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="train" class="grid hidden">
-      <div class="panel">
-        <h2>Treinamento Remoto</h2>
-        <p class="muted">Inicie um pipeline de treinamento completo utilizando a arquitetura atual. O modelo será re-treinado e os artefatos serão atualizados automaticamente caso obtenham melhor performance.</p>
-        
-        <div id="lineage-badge" class="hidden" style="margin-bottom: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.5); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #93c5fd;">
-          <span>🔗 Derivando do Run: <strong id="lineage-run-id"></strong></span>
-          <button onclick="clearLineage()" style="background: none; border: none; color: #93c5fd; cursor: pointer; padding: 0; font-weight: bold;" title="Remover relacionamento">✕</button>
-        </div>
-        <input type="hidden" id="train-parent-run-id" value="">
-
-        <div id="train-pipeline" class="pipeline-flow hidden">
-          <div class="pipeline-node" id="step-1">1. Coleta dos Dados</div>
-          <div class="pipeline-arrow">➔</div>
-          <div class="pipeline-node" id="step-2">2. Engenharia de Features</div>
-          <div class="pipeline-arrow">➔</div>
-          <div class="pipeline-node" id="step-3">3. Treinamento LSTM</div>
-          <div class="pipeline-arrow">➔</div>
-          <div class="pipeline-node" id="step-4">4. Avaliação + Registro MLflow</div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
-          <div class="form-group">
-            <label>Ticker / Symbol <span class="tooltip-icon" data-tooltip="Símbolo da ação no Yahoo Finance. Padrão: PETR4.SA">?</span></label>
-            <input id="train-symbol" type="text" value="PETR4.SA">
-          </div>
-          <div class="form-group">
-            <label>Start Date <span class="tooltip-icon" data-tooltip="Data de início do histórico.">?</span></label>
-            <input id="train-start" type="date" value="2018-01-01">
           </div>
           
-          <div class="form-group">
-            <label>Target Mode <span class="tooltip-icon" data-tooltip="Formato da variável alvo.">?</span></label>
-            <select id="train-target">
-              <option value="log_returns">log_returns (Recomendado)</option>
-              <option value="raw_close">raw_close</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Feature Mode <span class="tooltip-icon" data-tooltip="Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.">?</span></label>
-            <select id="train-feature" onchange="onFeatureModeChange()">
-              <option value="single">single (Univariado - Produção)</option>
-              <option value="ohlcv">ohlcv (Multivariado - Experimental)</option>
-              <option value="ohlcv_returns">ohlcv_returns (Multivariado - Experimental)</option>
-              <option value="technical_features">technical_features (Multivariado - Experimental)</option>
-              <option value="custom">custom (Seleção Customizada - Experimental)</option>
-            </select>
-          </div>
-          
-          <div class="form-group" style="grid-column: span 2; display: flex; align-items: center; gap: 12px; justify-content: flex-start;">
-            <input id="use-calc-features" type="checkbox" style="width: 18px !important; height: 18px; margin: 0 !important; cursor: pointer;" onchange="toggleCalcFeaturesSection()">
-            <label for="use-calc-features" style="cursor: pointer; font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 0;">Usar features calculadas</label>
+          <div id="inference-model-info" style="background: rgba(59, 130, 246, 0.08); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 11px; line-height: 1.4; color: #cbd5e1;">
+            <strong style="color: var(--accent-hover); display: block; margin-bottom: 2px;">🏆 Melhor Modelo Univariado (Single)</strong>
+            <span>Esta opção executa inferência usando o melhor modelo univariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4</code>). Requer apenas o histórico de fechamentos recentes.</span>
           </div>
 
-          <div id="calc-features-panel" class="panel hidden" style="grid-column: span 2; background: rgba(0,0,0,0.15); border: 1px solid var(--panel-border); padding: 16px; display: flex; flex-direction: column; gap: 16px; border-radius: 8px; margin-top: -8px; margin-bottom: 16px;">
-            <h3 style="font-size: 13px; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 6px;">
-              ⚙️ Configurar Features Calculadas
-            </h3>
-            
-            <div class="form-group" style="background: none; border: none; padding: 0; display: flex; justify-content: space-between; align-items: center;">
-              <label style="color: var(--text); font-weight: 500;">Preset de Features</label>
-              <select id="feature-preset-select" onchange="applyPreset()" style="width: 240px !important;">
-                <option value="technical_complete">Técnico completo</option>
-                <option value="returns_basic">Retornos básicos</option>
-                <option value="returns_trend">Retornos + tendência</option>
-                <option value="returns_volatility">Retornos + volatilidade</option>
-                <option value="custom">Customizado</option>
+          <textarea id="payload" spellcheck="false"
+            style="height: 140px; font-size: 11px; font-family: var(--font-mono); margin-bottom: 10px;">__SAMPLE_PAYLOAD__</textarea>
+          <div style="margin-top: 10px;">
+            <button class="primary" style="width: 100%;" onclick="runPrediction()">Executar Inferência</button>
+          </div>
+          <div id="error" class="error hidden"></div>
+        </div>
+        <div class="panel">
+          <h2>Resultados da Projeção</h2>
+          <div class="cards" style="grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div class="card" style="padding: 6px 10px;"><span>Último Fechamento</span><strong id="lastClose"
+                style="color: #cbd5e1; font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 6px 10px;"><span>Previsão LSTM</span><strong id="predictedClose"
+                style="color: var(--accent-hover); font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 6px 10px;"><span>Direção Prevista</span><strong id="direction"
+                style="font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 6px 10px;"><span>Retorno Prox. Dia</span><strong id="returnPct"
+                style="font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 6px 10px;"><span>Variação Absoluta</span><strong id="diffAbs"
+                style="font-size: 13px;">-</strong></div>
+            <div class="card" style="padding: 6px 10px;"><span>Tempo de Resposta</span><strong id="latency"
+                style="color: var(--success); font-size: 13px;">-</strong></div>
+          </div>
+          <div
+            style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--panel-border);">
+            <div style="position: relative; height: 150px; width: 100%;">
+              <canvas id="priceChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="telemetry" class="panel hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">Telemetria do Servidor</h2>
+          <button class="update-btn" onclick="loadTelemetry()">Atualizar Dados</button>
+        </div>
+        <p class="muted" style="margin-bottom: 8px;">Métricas em tempo real mantidas em memória para fins de
+          demonstração (Vercel). Acompanhe latência da API e utilização de recursos.</p>
+        <p class="muted" style="font-size: 11px; margin-bottom: 24px; color: var(--muted); font-style: italic;">Nota: O
+          valor de CPU representa uma amostra aproximada do momento da requisição e pode variar conforme o ambiente
+          serverless. Histórico é reiniciado a cada cold start.</p>
+
+        <div class="cards" style="grid-template-columns: repeat(5, 1fr);">
+          <div class="card"><span>Total Requisições</span><strong id="tel-reqs">-</strong></div>
+          <div class="card"><span>Taxa de Erro</span><strong id="tel-errs" style="color: var(--danger);">-</strong></div>
+          <div class="card"><span>Uptime</span><strong id="tel-uptime">-</strong></div>
+          <div class="card"><span>Latência Inferência</span><strong id="tel-lat">-</strong></div>
+          <div class="card"><span>Último Treino</span><strong id="tel-train-time">-</strong></div>
+        </div>
+
+        <div class="grid">
+          <div
+            style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
+            <h3
+              style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+              Uso de CPU & Memória (MB)</h3>
+            <div style="position: relative; height: 180px; width: 100%;">
+              <canvas id="resourceChart"></canvas>
+            </div>
+          </div>
+          <div
+            style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 12px; border: 1px solid var(--panel-border);">
+            <h3
+              style="font-size: 11px; margin: 0 0 8px 0; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
+              Latência de Inferência (ms)</h3>
+            <div style="position: relative; height: 180px; width: 100%;">
+              <canvas id="latencyChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 16px; border: 1px solid var(--panel-border);">
+          <h3 style="font-size: 11px; margin: 0 0 12px 0; color: var(--accent); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;">
+            📊 Métricas em Tempo Real do Prometheus (lidas de /metrics)
+          </h3>
+          <div class="grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 12px;">
+            <div style="background: rgba(255,255,255,0.02); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+              <h4 style="font-size: 10px; color: var(--muted); margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">Distribuição por Status Code HTTP</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #10b981; font-weight: 600;">🟢 Sucesso (2xx)</span>
+                  <strong id="metrics-2xx" style="font-size: 14px;">0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #f59e0b; font-weight: 600;">🟡 Erro do Cliente (4xx)</span>
+                  <strong id="metrics-4xx" style="font-size: 14px;">0</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 12px; color: #ef4444; font-weight: 600;">🔴 Erro do Servidor (5xx)</span>
+                  <strong id="metrics-5xx" style="font-size: 14px;">0</strong>
+                </div>
+              </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.02); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+              <h4 style="font-size: 10px; color: var(--muted); margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">Requisições por Endpoint</h4>
+              <div id="metrics-endpoints-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 100px; overflow-y: auto; font-size: 11px;">
+                <div class="muted" style="text-align: center; padding-top: 10px;">Aguardando tráfego...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="train" class="grid hidden">
+        <div class="panel">
+          <h2>Treinamento Remoto</h2>
+          <p class="muted">Inicie um pipeline de treinamento completo utilizando a arquitetura atual. O modelo será
+            re-treinado e os artefatos serão atualizados automaticamente caso obtenham melhor performance.</p>
+
+          <div id="lineage-badge" class="hidden"
+            style="margin-bottom: 12px; display: inline-flex; align-items: center; gap: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.5); padding: 4px 10px; border-radius: 4px; font-size: 11px; color: #93c5fd;">
+            <span>🔗 Derivando do Run: <strong id="lineage-run-id"></strong></span>
+            <button onclick="clearLineage()"
+              style="background: none; border: none; color: #93c5fd; cursor: pointer; padding: 0; font-weight: bold;"
+              title="Remover relacionamento">✕</button>
+          </div>
+          <input type="hidden" id="train-parent-run-id" value="">
+
+          <div id="train-pipeline" class="pipeline-flow hidden">
+            <div class="pipeline-node" id="step-1">1. Coleta dos Dados</div>
+            <div class="pipeline-arrow">➔</div>
+            <div class="pipeline-node" id="step-2">2. Engenharia de Features</div>
+            <div class="pipeline-arrow">➔</div>
+            <div class="pipeline-node" id="step-3">3. Treinamento LSTM</div>
+            <div class="pipeline-arrow">➔</div>
+            <div class="pipeline-node" id="step-4">4. Avaliação + Registro MLflow</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+            <div class="form-group">
+              <label>Ticker / Symbol <span class="tooltip-icon"
+                  data-tooltip="Símbolo da ação no Yahoo Finance. Padrão: PETR4.SA">?</span></label>
+              <input id="train-symbol" type="text" value="PETR4.SA">
+            </div>
+            <div class="form-group">
+              <label>Start Date <span class="tooltip-icon" data-tooltip="Data de início do histórico.">?</span></label>
+              <input id="train-start" type="date" value="2018-01-01">
+            </div>
+
+            <div class="form-group">
+              <label>Target Mode <span class="tooltip-icon" data-tooltip="Formato da variável alvo.">?</span></label>
+              <select id="train-target">
+                <option value="log_returns">log_returns (Recomendado)</option>
+                <option value="raw_close">raw_close</option>
               </select>
             </div>
-            
-            <div id="warning-multivariate" class="hidden" style="padding: 10px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 11px; border-radius: 6px; line-height: 1.4;">
-              ⚠️ <strong>Aviso de MLOps:</strong> Modelos com features que dependem de High/Low/Volume (ex: ATR, Range, Volume) exigem payload multivariado para inferência. A API /predict simplificada aceita apenas closes.
+            <div class="form-group">
+              <label>Feature Mode <span class="tooltip-icon"
+                  data-tooltip="Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.">?</span></label>
+              <select id="train-feature" onchange="onFeatureModeChange()">
+                <option value="single">single (Univariado - Produção)</option>
+                <option value="ohlcv">ohlcv (Multivariado - Experimental)</option>
+                <option value="ohlcv_returns">ohlcv_returns (Multivariado - Experimental)</option>
+                <option value="technical_features">technical_features (Multivariado - Experimental)</option>
+                <option value="custom">custom (Seleção Customizada - Experimental)</option>
+              </select>
             </div>
 
-            <div id="groups-container" style="display: flex; flex-direction: column; gap: 16px;"></div>
-          </div>
-          <div class="form-group">
-            <label>Device <span class="tooltip-icon" data-tooltip="Força a CPU ou GPU. CUDA reduz o tempo drasticamente mas exige hardware NVIDIA compatível e Drivers instalados.">?</span></label>
-            <select id="train-device">
-              <option value="auto">Auto-detect (CUDA if available)</option>
-              <option value="cpu">CPU Only</option>
-              <option value="cuda">NVIDIA CUDA</option>
-            </select>
-          </div>
+            <div class="form-group"
+              style="grid-column: span 2; display: flex; align-items: center; gap: 12px; justify-content: flex-start;">
+              <input id="use-calc-features" type="checkbox"
+                style="width: 18px !important; height: 18px; margin: 0 !important; cursor: pointer;"
+                onchange="toggleCalcFeaturesSection()">
+              <label for="use-calc-features"
+                style="cursor: pointer; font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 0;">Usar
+                features calculadas</label>
+            </div>
 
-          <div class="form-group">
-            <label>Hidden Size <span class="tooltip-icon" data-tooltip="Capacidade de memória da rede. Valores comuns: 32, 64, 128.">?</span></label>
-            <input id="train-hidden" type="number" value="64">
-          </div>
-          <div class="form-group">
-            <label>Num Layers <span class="tooltip-icon" data-tooltip="Número de camadas LSTM. 1 ou 2 é suficiente na maioria dos casos financeiros.">?</span></label>
-            <input id="train-layers" type="number" value="1">
-          </div>
+            <div id="calc-features-panel" class="panel hidden"
+              style="grid-column: span 2; background: rgba(0,0,0,0.15); border: 1px solid var(--panel-border); padding: 16px; display: flex; flex-direction: column; gap: 16px; border-radius: 8px; margin-top: -8px; margin-bottom: 16px;">
+              <h3
+                style="font-size: 13px; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                ⚙️ Configurar Features Calculadas
+              </h3>
 
-          <div class="form-group">
-            <label>Window Size <span class="tooltip-icon" data-tooltip="Lookback. Quantos dias no passado a rede lê para prever o próximo. Janelas longas captam tendências maiores mas podem incluir ruídos desnecessários.">?</span></label>
-            <input id="train-window" type="number" value="60">
-          </div>
-          <div class="form-group">
-            <label>Batch Size <span class="tooltip-icon" data-tooltip="Quantos lotes a rede lê antes de atualizar os pesos. Batches menores = pulos frequentes mas erráticos. Batches maiores = média de erros mais suave e rápida.">?</span></label>
-            <input id="train-batch" type="number" value="32">
-          </div>
+              <div class="form-group"
+                style="background: none; border: none; padding: 0; display: flex; justify-content: space-between; align-items: center;">
+                <label style="color: var(--text); font-weight: 500;">Preset de Features</label>
+                <select id="feature-preset-select" onchange="applyPreset()" style="width: 240px !important;">
+                  <option value="technical_complete">Técnico completo</option>
+                  <option value="returns_basic">Retornos básicos</option>
+                  <option value="returns_trend">Retornos + tendência</option>
+                  <option value="returns_volatility">Retornos + volatilidade</option>
+                  <option value="custom">Customizado</option>
+                </select>
+              </div>
 
-          <div class="form-group">
-            <label>Max Epochs <span class="tooltip-icon" data-tooltip="Máximo de ciclos completos de treinamento. Mais ciclos forçam aprendizado, mas correm risco de Overfitting (decorar os dados).">?</span></label>
-            <input id="train-epochs" type="number" value="100">
-          </div>
-          <div class="form-group">
-            <label>Patience <span class="tooltip-icon" data-tooltip="A rede pára o treino automaticamente e reverte se não melhorar a métrica de teste por X épocas seguidas, poupando tempo e overfitting.">?</span></label>
-            <input id="train-patience" type="number" value="10">
-          </div>
+              <div id="warning-multivariate" class="hidden"
+                style="padding: 10px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 11px; border-radius: 6px; line-height: 1.4;">
+                ⚠️ <strong>Aviso de MLOps:</strong> Modelos com features que dependem de High/Low/Volume (ex: ATR,
+                Range, Volume) exigem payload multivariado para inferência. A API /predict simplificada aceita apenas
+                closes.
+              </div>
 
-          <div class="form-group">
-            <label>Learning Rate <span class="tooltip-icon" data-tooltip="Taxa de aprendizado. Valores altos convergem muito rápido mas costumam 'pular' o melhor mínimo do erro. Muito baixos custam muito tempo.">?</span></label>
-            <input id="train-lr" type="number" step="0.0001" value="0.001">
-          </div>
-          <div class="form-group">
-            <label>Weight Decay <span class="tooltip-icon" data-tooltip="Penalidade L2. Força os pesos a ficarem pequenos, prevenindo overfitting.">?</span></label>
-            <input id="train-wd" type="number" step="0.0001" value="0.0001">
-          </div>
+              <div id="groups-container" style="display: flex; flex-direction: column; gap: 16px;"></div>
+            </div>
+            <div class="form-group">
+              <label>Device <span class="tooltip-icon"
+                  data-tooltip="Força a CPU ou GPU. CUDA reduz o tempo drasticamente mas exige hardware NVIDIA compatível e Drivers instalados.">?</span></label>
+              <select id="train-device">
+                <option value="auto">Auto-detect (CUDA if available)</option>
+                <option value="cpu">CPU Only</option>
+                <option value="cuda">NVIDIA CUDA</option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>Dropout <span class="tooltip-icon" data-tooltip="Percentual de neurônios 'desligados' intencionalmente durante o treino. Ajuda a forçar a rede a generalizar e não decorar os dados. (0.2 = 20%)">?</span></label>
-            <input id="train-dropout" type="number" step="0.01" value="0.20">
+            <div class="form-group">
+              <label>Hidden Size <span class="tooltip-icon"
+                  data-tooltip="Capacidade de memória da rede. Valores comuns: 32, 64, 128.">?</span></label>
+              <input id="train-hidden" type="number" value="64">
+            </div>
+            <div class="form-group">
+              <label>Num Layers <span class="tooltip-icon"
+                  data-tooltip="Número de camadas LSTM. 1 ou 2 é suficiente na maioria dos casos financeiros.">?</span></label>
+              <input id="train-layers" type="number" value="1">
+            </div>
+
+            <div class="form-group">
+              <label>Window Size <span class="tooltip-icon"
+                  data-tooltip="Lookback. Quantos dias no passado a rede lê para prever o próximo. Janelas longas captam tendências maiores mas podem incluir ruídos desnecessários.">?</span></label>
+              <input id="train-window" type="number" value="60">
+            </div>
+            <div class="form-group">
+              <label>Batch Size <span class="tooltip-icon"
+                  data-tooltip="Quantos lotes a rede lê antes de atualizar os pesos. Batches menores = pulos frequentes mas erráticos. Batches maiores = média de erros mais suave e rápida.">?</span></label>
+              <input id="train-batch" type="number" value="32">
+            </div>
+
+            <div class="form-group">
+              <label>Max Epochs <span class="tooltip-icon"
+                  data-tooltip="Máximo de ciclos completos de treinamento. Mais ciclos forçam aprendizado, mas correm risco de Overfitting (decorar os dados).">?</span></label>
+              <input id="train-epochs" type="number" value="100">
+            </div>
+            <div class="form-group">
+              <label>Patience <span class="tooltip-icon"
+                  data-tooltip="A rede pára o treino automaticamente e reverte se não melhorar a métrica de teste por X épocas seguidas, poupando tempo e overfitting.">?</span></label>
+              <input id="train-patience" type="number" value="10">
+            </div>
+
+            <div class="form-group">
+              <label>Learning Rate <span class="tooltip-icon"
+                  data-tooltip="Taxa de aprendizado. Valores altos convergem muito rápido mas costumam 'pular' o melhor mínimo do erro. Muito baixos custam muito tempo.">?</span></label>
+              <input id="train-lr" type="number" step="0.0001" value="0.001">
+            </div>
+            <div class="form-group">
+              <label>Weight Decay <span class="tooltip-icon"
+                  data-tooltip="Penalidade L2. Força os pesos a ficarem pequenos, prevenindo overfitting.">?</span></label>
+              <input id="train-wd" type="number" step="0.0001" value="0.0001">
+            </div>
+
+            <div class="form-group">
+              <label>Dropout <span class="tooltip-icon"
+                  data-tooltip="Percentual de neurônios 'desligados' intencionalmente durante o treino. Ajuda a forçar a rede a generalizar e não decorar os dados. (0.2 = 20%)">?</span></label>
+              <input id="train-dropout" type="number" step="0.01" value="0.20">
+            </div>
+            <div class="form-group">
+              <label>Grad Clip <span class="tooltip-icon"
+                  data-tooltip="Evita que os gradientes explodam e desestabilizem os pesos da rede.">?</span></label>
+              <input id="train-clip" type="number" step="0.1" value="1.0">
+            </div>
+            <div class="form-group">
+              <label>Feature Scaler <span class="tooltip-icon"
+                  data-tooltip="Tipo do normalizador das features de entrada: StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
+              <select id="train-feature-scaler">
+                <option value="standard">StandardScaler</option>
+                <option value="minmax">MinMaxScaler</option>
+                <option value="robust">RobustScaler (Recomendado)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Target Scaler <span class="tooltip-icon"
+                  data-tooltip="Tipo do normalizador do alvo (target): StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
+              <select id="train-target-scaler">
+                <option value="standard">StandardScaler</option>
+                <option value="minmax">MinMaxScaler</option>
+                <option value="robust">RobustScaler (Recomendado)</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Grad Clip <span class="tooltip-icon" data-tooltip="Evita que os gradientes explodam e desestabilizem os pesos da rede.">?</span></label>
-            <input id="train-clip" type="number" step="0.1" value="1.0">
+          <button class="primary" style="width: 100%" onclick="runTraining()" id="train-btn">Inicializar Pipeline de
+            Treinamento</button>
+
+
+
+          <div id="train-error" class="error hidden"></div>
+          <pre id="train-success" class="hidden"
+            style="margin-top: 16px; border-color: rgba(16, 185, 129, 0.3); color: #34d399;"></pre>
+        </div>
+        <div class="panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Histórico de Treinamentos (MLflow)</h2>
+            <button class="update-btn" onclick="loadRuns()">Atualizar Lista</button>
           </div>
-          <div class="form-group">
-            <label>Feature Scaler <span class="tooltip-icon" data-tooltip="Tipo do normalizador das features de entrada: StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
-            <select id="train-feature-scaler">
-              <option value="standard">StandardScaler</option>
-              <option value="minmax">MinMaxScaler</option>
-              <option value="robust">RobustScaler (Recomendado)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Target Scaler <span class="tooltip-icon" data-tooltip="Tipo do normalizador do alvo (target): StandardScaler, MinMaxScaler ou RobustScaler (recomendado para atenuar outliers em ações).">?</span></label>
-            <select id="train-target-scaler">
-              <option value="standard">StandardScaler</option>
-              <option value="minmax">MinMaxScaler</option>
-              <option value="robust">RobustScaler (Recomendado)</option>
-            </select>
+          <div
+            style="overflow-x: auto; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--panel-border);">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Status</th>
+                  <th>Target Mode</th>
+                  <th>MAPE Teste</th>
+                  <th>RMSE Teste</th>
+                  <th>MAE Teste</th>
+                  <th>Acurácia Dir.</th>
+                </tr>
+              </thead>
+              <tbody id="runs-table-body">
+                <tr>
+                  <td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no
+                    MLflow...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-        <button class="primary" style="width: 100%" onclick="runTraining()" id="train-btn">Inicializar Pipeline de Treinamento</button>
-        
+    </main>
+  </div>
 
-
-        <div id="train-error" class="error hidden"></div>
-        <pre id="train-success" class="hidden" style="margin-top: 16px; border-color: rgba(16, 185, 129, 0.3); color: #34d399;"></pre>
-      </div>
-      <div class="panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0;">Histórico de Treinamentos (MLflow)</h2>
-          <button class="update-btn" onclick="loadRuns()">Atualizar Lista</button>
-        </div>
-        <div style="overflow-x: auto; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--panel-border);">
-          <table>
-            <thead>
-              <tr>
-                <th>Run ID</th>
-                <th>Status</th>
-                <th>Target Mode</th>
-                <th>MAPE Teste</th>
-                <th>RMSE Teste</th>
-                <th>MAE Teste</th>
-                <th>Acurácia Dir.</th>
-              </tr>
-            </thead>
-            <tbody id="runs-table-body">
-              <tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no MLflow...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-  </main>
-</div>
-
-  <div id="lineage-modal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div style="background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; width: 600px; max-width: 95%; max-height: 90vh; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;">
-      <div style="padding: 16px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); flex-shrink: 0;">
+  <div id="lineage-modal" class="hidden"
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div
+      style="background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; width: 600px; max-width: 95%; max-height: 90vh; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;">
+      <div
+        style="padding: 16px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); flex-shrink: 0;">
         <h3 style="margin: 0; color: var(--text);">Comparação de Linhagem</h3>
-        <button onclick="document.getElementById('lineage-modal').classList.add('hidden'); document.getElementById('lineage-modal').style.display = 'none';" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 8px;">✕</button>
+        <button
+          onclick="document.getElementById('lineage-modal').classList.add('hidden'); document.getElementById('lineage-modal').style.display = 'none';"
+          style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 8px;">✕</button>
       </div>
       <div style="padding: 20px; overflow-y: auto;" id="lineage-modal-content">
         <!-- Content populated by JS -->
@@ -985,12 +1184,74 @@
   <script>
     Chart.defaults.color = '#94a3b8';
     Chart.defaults.font.family = "'Inter', sans-serif";
-    
+
     let chart = null;
     let resourceChart = null;
     let latencyChart = null;
     let currentModelCardType = 'single';
-    
+    let currentInferenceModel = 'single';
+
+    const SAMPLE_PAYLOAD_SINGLE = `{
+  "symbol": "PETR4.SA",
+  "closes": [
+    43.0, 43.21, 43.4, 43.5, 43.6, 43.7, 43.85, 43.9,
+    44.1, 44.3, 44.5, 44.7, 44.9, 45.1, 45.22
+  ]
+}`;
+
+    const SAMPLE_PAYLOAD_MULTI = `{
+  "symbol": "PETR4.SA",
+  "rows": [
+    { "date": "2024-01-02", "open": 43.00, "high": 43.50, "low": 42.80, "close": 43.10, "volume": 12000000 },
+    { "date": "2024-01-03", "open": 43.10, "high": 43.60, "low": 43.00, "close": 43.30, "volume": 11500000 },
+    { "date": "2024-01-04", "open": 43.30, "high": 43.80, "low": 43.20, "close": 43.50, "volume": 13000000 },
+    { "date": "2024-01-05", "open": 43.50, "high": 44.00, "low": 43.40, "close": 43.70, "volume": 12500000 },
+    { "date": "2024-01-08", "open": 43.70, "high": 44.20, "low": 43.60, "close": 43.90, "volume": 14000000 },
+    { "date": "2024-01-09", "open": 43.90, "high": 44.40, "low": 43.80, "close": 44.10, "volume": 11800000 },
+    { "date": "2024-01-10", "open": 44.10, "high": 44.60, "low": 44.00, "close": 44.30, "volume": 13500000 },
+    { "date": "2024-01-11", "open": 44.30, "high": 44.80, "low": 44.20, "close": 44.50, "volume": 12800000 },
+    { "date": "2024-01-12", "open": 44.50, "high": 45.00, "low": 44.40, "close": 44.70, "volume": 15000000 },
+    { "date": "2024-01-15", "open": 44.70, "high": 45.20, "low": 44.60, "close": 44.90, "volume": 12200000 },
+    { "date": "2024-01-16", "open": 44.90, "high": 45.40, "low": 44.80, "close": 45.10, "volume": 13100000 },
+    { "date": "2024-01-17", "open": 45.10, "high": 45.60, "low": 45.00, "close": 45.25, "volume": 14200000 },
+    { "date": "2024-01-18", "open": 45.25, "high": 45.80, "low": 45.10, "close": 45.35, "volume": 11900000 },
+    { "date": "2024-01-19", "open": 45.35, "high": 46.00, "low": 45.20, "close": 45.50, "volume": 15500000 },
+    { "date": "2024-01-22", "open": 45.50, "high": 46.20, "low": 45.40, "close": 45.72, "volume": 13800000 }
+  ]
+}`;
+
+    function changeInferenceModel(type) {
+      currentInferenceModel = type;
+      const btnSingle = document.getElementById('btn-inf-single');
+      const btnMulti = document.getElementById('btn-inf-multi');
+      const infoEl = document.getElementById('inference-model-info');
+      const payloadTextarea = document.getElementById('payload');
+
+      if (type === 'single') {
+        btnSingle.style.background = 'var(--accent)';
+        btnSingle.style.color = '#fff';
+        btnMulti.style.background = 'transparent';
+        btnMulti.style.color = '#a0aec0';
+        
+        infoEl.innerHTML = `
+          <strong style="color: var(--accent-hover); display: block; margin-bottom: 2px;">🏆 Melhor Modelo Univariado (Single)</strong>
+          <span>Esta opção executa inferência usando o melhor modelo univariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4</code>). Requer apenas o histórico de fechamentos recentes.</span>
+        `;
+        payloadTextarea.value = SAMPLE_PAYLOAD_SINGLE;
+      } else {
+        btnSingle.style.background = 'transparent';
+        btnSingle.style.color = '#a0aec0';
+        btnMulti.style.background = 'var(--accent)';
+        btnMulti.style.color = '#fff';
+
+        infoEl.innerHTML = `
+          <strong style="color: var(--accent-hover); display: block; margin-bottom: 2px;">🏆 Melhor Modelo Multivariado (Multi)</strong>
+          <span>Esta opção executa inferência usando o melhor modelo multivariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4_multi</code>). Requer a série histórica de dados OHLCV completos.</span>
+        `;
+        payloadTextarea.value = SAMPLE_PAYLOAD_MULTI;
+      }
+    }
+
     const ENABLE_TRAINING_API = __ENABLE_TRAINING_API__;
     if (!ENABLE_TRAINING_API) {
       document.getElementById('tab-train').style.display = 'none';
@@ -1017,7 +1278,7 @@
       const errEl = document.getElementById('error');
       errEl.textContent = '';
       errEl.classList.add('hidden');
-      
+
       let payload;
       try {
         payload = JSON.parse(document.getElementById('payload').value);
@@ -1029,14 +1290,15 @@
 
       const start = performance.now();
       try {
-        const response = await fetch('/predict', {
+        const endpoint = currentInferenceModel === 'multi' ? '/predict/ohlcv' : '/predict';
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         const elapsed = performance.now() - start;
         const data = await response.json();
-        
+
         if (!response.ok) {
           errEl.textContent = data.detail || JSON.stringify(data, null, 2);
           errEl.classList.remove('hidden');
@@ -1045,20 +1307,26 @@
 
         document.getElementById('lastClose').textContent = money(data.last_close);
         document.getElementById('predictedClose').textContent = money(data.predicted_close);
-        
+
         const dirEl = document.getElementById('direction');
         dirEl.textContent = data.predicted_direction.toUpperCase();
         dirEl.style.color = data.predicted_direction === 'alta' ? 'var(--success)' : 'var(--danger)';
-        
+
         const retPct = Number(data.predicted_return_pct);
         const retEl = document.getElementById('returnPct');
         retEl.textContent = (retPct > 0 ? '+' : '') + retPct.toFixed(3) + '%';
         retEl.style.color = retPct > 0 ? 'var(--success)' : 'var(--danger)';
-        
+
         document.getElementById('diffAbs').textContent = (data.predicted_change_abs > 0 ? '+' : '') + money(data.predicted_change_abs);
         document.getElementById('latency').textContent = elapsed.toFixed(1) + ' ms';
-        
-        renderChart(payload.closes || [], data.predicted_close);
+
+        let closes = [];
+        if (currentInferenceModel === 'multi') {
+          closes = (payload.rows || []).map(r => r.close);
+        } else {
+          closes = payload.closes || [];
+        }
+        renderChart(closes, data.predicted_close);
         loadTelemetry();
       } catch (e) {
         errEl.textContent = 'Erro de rede: ' + e.message;
@@ -1072,28 +1340,28 @@
       const closeSeries = recent.concat(null);
       const predictedSeries = new Array(recent.length).fill(null).concat(Number(predicted));
       const ctx = document.getElementById('priceChart');
-      
+
       if (chart) chart.destroy();
-      
+
       chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels,
           datasets: [
-            { 
-              label: 'Fechamentos Históricos', 
-              data: closeSeries, 
-              borderColor: '#3b82f6', 
-              backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+            {
+              label: 'Fechamentos Históricos',
+              data: closeSeries,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
               tension: 0.3,
               borderWidth: 2,
               fill: true
             },
-            { 
-              label: 'Projeção LSTM', 
-              data: predictedSeries, 
-              borderColor: '#a78bfa', 
-              backgroundColor: '#a78bfa', 
+            {
+              label: 'Projeção LSTM',
+              data: predictedSeries,
+              borderColor: '#a78bfa',
+              backgroundColor: '#a78bfa',
               pointBackgroundColor: '#a78bfa',
               pointBorderColor: '#fff',
               pointRadius: 6,
@@ -1107,11 +1375,11 @@
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
-          plugins: { 
+          plugins: {
             legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
             tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { size: 13 }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 8, displayColors: false }
           },
-          scales: { 
+          scales: {
             x: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false } },
             y: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, ticks: { callback: (val) => 'R$ ' + val } }
           }
@@ -1123,12 +1391,26 @@
       try {
         const response = await fetch('/telemetry');
         const data = await response.json();
-        
+
         document.getElementById('tel-reqs').textContent = data.api.total_requests;
         const errRate = data.api.total_requests > 0 ? (data.api.total_errors / data.api.total_requests * 100) : 0;
         document.getElementById('tel-errs').textContent = errRate.toFixed(1) + '%';
         document.getElementById('tel-uptime').textContent = data.uptime_seconds + 's';
-        document.getElementById('tel-lat').textContent = data.api.average_response_time_ms + ' ms';
+        document.getElementById('tel-lat').textContent = data.inference.average_time_ms.toFixed(1) + ' ms';
+
+        const trainEl = document.getElementById('tel-train-time');
+        if (trainEl) {
+          if (!data.training.enabled) {
+            trainEl.textContent = 'N/A';
+            trainEl.style.color = 'var(--muted)';
+          } else if (data.training.last_time_sec === null || data.training.last_time_sec === undefined) {
+            trainEl.textContent = 'Aguardando';
+            trainEl.style.color = 'var(--muted)';
+          } else {
+            trainEl.textContent = data.training.last_time_sec + 's';
+            trainEl.style.color = '';
+          }
+        }
 
         const history = data.history || [];
         const labels = history.map(h => h.timestamp);
@@ -1146,9 +1428,9 @@
               { label: 'RAM (MB)', data: memData, borderColor: '#10b981', tension: 0.2, pointRadius: 1, borderWidth: 2 }
             ]
           },
-          options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
             animation: false,
             interaction: { mode: 'index', intersect: false },
             scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } }
@@ -1164,25 +1446,104 @@
               { label: 'Latência (ms)', data: latData, borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.1)', fill: true, tension: 0.2, pointRadius: 1, borderWidth: 2 }
             ]
           },
-          options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
             animation: false,
             interaction: { mode: 'index', intersect: false },
             scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } }
           }
         });
+
+        // Carrega e processa as métricas do Prometheus
+        await loadPrometheusMetrics();
       } catch (e) {
         console.error('Falha ao carregar telemetria:', e);
       }
     }
 
+    async function loadPrometheusMetrics() {
+      try {
+        const response = await fetch('/metrics');
+        if (!response.ok) return;
+        const text = await response.text();
+        if (!text) return;
+
+        const lines = text.split('\n');
+        let status2xx = 0;
+        let status4xx = 0;
+        let status5xx = 0;
+        let endpointCounts = {};
+        let endpointSums = {};
+
+        for (let line of lines) {
+          if (line.startsWith('#') || !line.trim()) continue;
+          
+          const matchValue = line.match(/\s+([\d.e+-]+)(?:\s*|$)/);
+          if (!matchValue) continue;
+          const value = parseFloat(matchValue[1]);
+
+          if (line.includes('requests_total') || line.includes('requests_created') || line.includes('duration_seconds_count')) {
+            const statusMatch = line.match(/(?:status|status_code|http_status|code)="(\d+)"/);
+            if (statusMatch) {
+              const status = parseInt(statusMatch[1]);
+              if (status >= 200 && status < 300) status2xx += value;
+              else if (status >= 400 && status < 500) status4xx += value;
+              else if (status >= 500 && status < 600) status5xx += value;
+            }
+          }
+
+          const handlerMatch = line.match(/(?:handler|path|endpoint|route)="([^"]+)"/);
+          if (handlerMatch) {
+            const handler = handlerMatch[1];
+            if (handler !== '/metrics' && handler !== '/favicon.ico') {
+              if (line.includes('duration_seconds_sum') || line.includes('duration_ms_sum')) {
+                endpointSums[handler] = (endpointSums[handler] || 0) + value;
+              }
+              if (line.includes('duration_seconds_count') || line.includes('requests_total') || line.includes('duration_ms_count')) {
+                endpointCounts[handler] = (endpointCounts[handler] || 0) + value;
+              }
+            }
+          }
+        }
+
+        document.getElementById('metrics-2xx').textContent = Math.round(status2xx);
+        document.getElementById('metrics-4xx').textContent = Math.round(status4xx);
+        document.getElementById('metrics-5xx').textContent = Math.round(status5xx);
+
+        const listEl = document.getElementById('metrics-endpoints-list');
+        listEl.innerHTML = '';
+        const sortedEndpoints = Object.keys(endpointCounts).sort((a, b) => endpointCounts[b] - endpointCounts[a]);
+        if (sortedEndpoints.length === 0) {
+          listEl.innerHTML = '<div class="muted" style="text-align: center; padding-top: 10px;">Nenhuma requisição registrada.</div>';
+        } else {
+          for (let handler of sortedEndpoints) {
+            const count = endpointCounts[handler];
+            const sum = endpointSums[handler] || 0;
+            const avgMs = count > 0 ? (sum / count) * 1000 : 0;
+            const avgText = avgMs > 0 ? `${avgMs.toFixed(1)} ms` : 'N/A';
+            
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justify = 'space-between';
+            row.style.alignItems = 'center';
+            row.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+            row.style.padding = '4px 0';
+            row.innerHTML = `<span style="font-family: monospace; color: #a78bfa;">${handler}</span><span><strong>${Math.round(count)} reqs</strong> <span class="muted" style="font-size:10px; margin-left:8px;">(${avgText})</span></span>`;
+            listEl.appendChild(row);
+          }
+        }
+      } catch (e) {
+        console.error('Falha ao processar /metrics do Prometheus:', e);
+      }
+    }
+
     async function changeModelCardView(type) {
       currentModelCardType = type;
-      
+
       const btnSingle = document.getElementById('btn-mc-single');
       const btnMulti = document.getElementById('btn-mc-multi');
-      
+
       if (type === 'single') {
         btnSingle.style.background = 'var(--accent)';
         btnSingle.style.color = '#fff';
@@ -1194,7 +1555,7 @@
         btnSingle.style.background = 'transparent';
         btnSingle.style.color = '#a0aec0';
       }
-      
+
       await loadModelCard();
     }
 
@@ -1202,7 +1563,7 @@
       try {
         const res = await fetch(`/model-card?type=${currentModelCardType}`);
         const data = await res.json();
-        
+
         const overview = data.model_overview || {};
         const training = data.training_details || {};
         const evaluation = data.evaluation_details || {};
@@ -1248,7 +1609,7 @@
         document.getElementById('mc-version').textContent = overview.model_version || '-';
         document.getElementById('mc-description').textContent = overview.model_description || '-';
         document.getElementById('mc-intended-uses').textContent = overview.intended_uses || '-';
-        
+
         const riskRating = document.getElementById('mc-risk-rating');
         if (riskRating && overview.risk_rating) {
           riskRating.textContent = overview.risk_rating + ' Risk';
@@ -1278,7 +1639,7 @@
         document.getElementById('mc-observations').textContent = training.training_observations || '-';
 
         document.getElementById('mc-eval-dataset').textContent = evaluation.evaluation_dataset || '-';
-        
+
         const evalMetrics = evaluation.metrics || {};
         if (evalMetrics && evalMetrics.lstm_test) {
           document.getElementById('mc-mape').textContent = evalMetrics.lstm_test.mape_pct.toFixed(2) + '%';
@@ -1291,11 +1652,19 @@
 
         document.getElementById('mc-ethical').textContent = additional.ethical_considerations || '-';
         document.getElementById('mc-caveats').textContent = additional.caveats_and_recommendations || '-';
-        
+
         const imgEl = document.getElementById('mc-image');
+        const zoomBtn = document.getElementById('btn-zoom-image');
         if (imgEl) {
+          imgEl.onload = () => {
+            imgEl.style.display = 'block';
+            if (zoomBtn) zoomBtn.style.display = 'block';
+          };
+          imgEl.onerror = () => {
+            imgEl.style.display = 'none';
+            if (zoomBtn) zoomBtn.style.display = 'none';
+          };
           imgEl.src = `/model-image?type=${currentModelCardType}&t=${new Date().getTime()}`;
-          imgEl.style.display = 'block';
         }
 
       } catch (e) {
@@ -1305,9 +1674,9 @@
 
     function clearLineage() {
       const el = document.getElementById('train-parent-run-id');
-      if(el) el.value = "";
+      if (el) el.value = "";
       const badge = document.getElementById('lineage-badge');
-      if(badge) badge.classList.add('hidden');
+      if (badge) badge.classList.add('hidden');
     }
 
     const FEATURE_REGISTRY = [
@@ -1319,7 +1688,7 @@
       { name: "Log_Return_Lag5", label: "Lag 5 de Log-Retorno", group: "Retornos", desc: "Log-retorno de 5 pregões atrás.", requires: ["Close"] },
       { name: "Rolling_Return_5", label: "Retorno Acumulado (5d)", group: "Retornos", desc: "Retorno acumulado nos últimos 5 dias.", requires: ["Close"] },
       { name: "Rolling_Return_20", label: "Retorno Acumulado (20d)", group: "Retornos", desc: "Retorno acumulado nos últimos 20 dias.", requires: ["Close"] },
-      
+
       { name: "SMA_7", label: "Média Móvel Simples 7d", group: "Tendência", desc: "Média dos preços de fechamento nos últimos 7 dias.", requires: ["Close"] },
       { name: "SMA_21", label: "Média Móvel Simples 21d", group: "Tendência", desc: "Média dos preços de fechamento nos últimos 21 dias.", requires: ["Close"] },
       { name: "Momentum_5", label: "Momentum 5d", group: "Tendência", desc: "Razão do fechamento de hoje contra 5 dias atrás.", requires: ["Close"] },
@@ -1327,15 +1696,15 @@
       { name: "MACD", label: "Linha MACD", group: "Tendência", desc: "Diferença entre EMAs de 12 e 26 dias.", requires: ["Close"] },
       { name: "MACD_Signal", label: "Sinal do MACD", group: "Tendência", desc: "EMA de 9 dias da linha MACD.", requires: ["Close"] },
       { name: "MACD_Hist", label: "Histograma MACD", group: "Tendência", desc: "Diferença entre linha MACD e sinal.", requires: ["Close"] },
-      
+
       { name: "Volatility_21", label: "Volatilidade 21d", group: "Volatilidade", desc: "Desvio padrão dos log-retornos nos últimos 21 dias.", requires: ["Close"] },
       { name: "BB_Width", label: "Largura das Bandas de Bollinger", group: "Volatilidade", desc: "Mede a dispersão das bandas de volatilidade.", requires: ["Close"] },
       { name: "ATR_14", label: "Average True Range (14d)", group: "Volatilidade", desc: "Mede a amplitude média real de negociação.", requires: ["High", "Low", "Close"] },
       { name: "Range_Pct", label: "Range Diário %", group: "Volatilidade", desc: "Razão entre Máxima/Mínima e o Fechamento.", requires: ["High", "Low", "Close"] },
-      
+
       { name: "Volume_Z", label: "Volume Normalizado (Z-score)", group: "Volume", desc: "Z-score do volume transacionado em janela de 21 dias.", requires: ["Volume"] },
       { name: "Log_Volume", label: "Log do Volume", group: "Volume", desc: "Logaritmo natural do volume transacionado.", requires: ["Volume"] },
-      
+
       { name: "Day_Of_Week", label: "Dia da Semana", group: "Calendário", desc: "Representação numérica do dia da semana (0-4).", requires: ["Date"] }
     ];
 
@@ -1349,36 +1718,36 @@
     function renderCalculatedFeatures() {
       const container = document.getElementById("groups-container");
       container.innerHTML = "";
-      
+
       const groups = {};
       FEATURE_REGISTRY.forEach(f => {
         if (!groups[f.group]) groups[f.group] = [];
         groups[f.group].push(f);
       });
-      
+
       for (const [groupName, features] of Object.entries(groups)) {
         const groupDiv = document.createElement("div");
         groupDiv.style.borderBottom = "1px solid var(--panel-border)";
         groupDiv.style.paddingBottom = "12px";
-        
+
         const headerDiv = document.createElement("div");
         headerDiv.style.display = "flex";
         headerDiv.style.alignItems = "center";
         headerDiv.style.gap = "8px";
         headerDiv.style.marginBottom = "8px";
-        
+
         const groupCbId = "group-" + groupName.replace(/\s+/g, "-");
         headerDiv.innerHTML = `
           <input type="checkbox" id="${groupCbId}" onchange="toggleGroup('${groupName}', this.checked)" style="width: 14px !important; height: 14px; margin: 0 !important; cursor: pointer;">
           <label for="${groupCbId}" style="cursor: pointer; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin: 0;">${groupName}</label>
         `;
         groupDiv.appendChild(headerDiv);
-        
+
         const gridDiv = document.createElement("div");
         gridDiv.style.display = "grid";
         gridDiv.style.gridTemplateColumns = "repeat(auto-fill, minmax(280px, 1fr))";
         gridDiv.style.gap = "10px";
-        
+
         features.forEach(f => {
           const itemDiv = document.createElement("div");
           itemDiv.style.background = "rgba(255,255,255,0.02)";
@@ -1388,7 +1757,7 @@
           itemDiv.style.display = "flex";
           itemDiv.style.alignItems = "flex-start";
           itemDiv.style.gap = "8px";
-          
+
           itemDiv.innerHTML = `
             <input type="checkbox" id="feat-${f.name}" value="${f.name}" onchange="updateCalculatedFeatures(true)" style="width: 14px !important; height: 14px; margin-top: 2px !important; cursor: pointer;">
             <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1398,7 +1767,7 @@
           `;
           gridDiv.appendChild(itemDiv);
         });
-        
+
         groupDiv.appendChild(gridDiv);
         container.appendChild(groupDiv);
       }
@@ -1418,7 +1787,7 @@
       const checked = document.getElementById("use-calc-features").checked;
       const panel = document.getElementById("calc-features-panel");
       const featSelect = document.getElementById("train-feature");
-      
+
       if (checked) {
         panel.classList.remove("hidden");
         featSelect.value = "technical_features";
@@ -1433,7 +1802,7 @@
       const val = document.getElementById("train-feature").value;
       const useCalcCb = document.getElementById("use-calc-features");
       const panel = document.getElementById("calc-features-panel");
-      
+
       if (val === "technical_features" || val === "custom") {
         useCalcCb.checked = true;
         panel.classList.remove("hidden");
@@ -1457,17 +1826,17 @@
         document.getElementById("train-feature").value = "custom";
         return;
       }
-      
+
       document.getElementById("train-feature").value = "technical_features";
       const presetList = FEATURE_PRESETS[preset] || [];
-      
+
       FEATURE_REGISTRY.forEach(f => {
         const cb = document.getElementById("feat-" + f.name);
         if (cb) {
           cb.checked = presetList.includes(f.name);
         }
       });
-      
+
       updateCalculatedFeatures(false);
     }
 
@@ -1489,19 +1858,19 @@
             });
           }
         };
-        
+
         checkAndSelect("MACD", ["MACD_Signal", "MACD_Hist"]);
         checkAndSelect("SMA_7", ["SMA_21"]);
         checkAndSelect("Rolling_Return_5", ["Rolling_Return_20"]);
         checkAndSelect("Volume_Z", ["Log_Volume"]);
       }
-      
+
       const groups = {};
       FEATURE_REGISTRY.forEach(f => {
         if (!groups[f.group]) groups[f.group] = [];
         groups[f.group].push(f);
       });
-      
+
       for (const [groupName, features] of Object.entries(groups)) {
         const groupCb = document.getElementById("group-" + groupName.replace(/\s+/g, "-"));
         if (groupCb) {
@@ -1512,10 +1881,10 @@
           groupCb.checked = allChecked;
         }
       }
-      
+
       let currentSelection = Array.from(document.querySelectorAll('#groups-container input[type="checkbox"][id^="feat-"]:checked'))
         .map(cb => cb.value);
-      
+
       let matchedPreset = "custom";
       for (const [presetName, list] of Object.entries(FEATURE_PRESETS)) {
         if (list.length === currentSelection.length && list.every(item => currentSelection.includes(item))) {
@@ -1523,17 +1892,17 @@
           break;
         }
       }
-      
+
       const presetSelect = document.getElementById("feature-preset-select");
       presetSelect.value = matchedPreset;
-      
+
       const featSelect = document.getElementById("train-feature");
       if (matchedPreset === "custom") {
         featSelect.value = "custom";
       } else {
         featSelect.value = "technical_features";
       }
-      
+
       let needsOhlcv = false;
       FEATURE_REGISTRY.forEach(f => {
         const cb = document.getElementById("feat-" + f.name);
@@ -1543,7 +1912,7 @@
           }
         }
       });
-      
+
       const warnEl = document.getElementById("warning-multivariate");
       if (needsOhlcv) {
         warnEl.classList.remove("hidden");
@@ -1614,17 +1983,17 @@
           document.getElementById(id).value = p[key];
         }
       }
-      
+
       document.querySelectorAll('#groups-container input[type="checkbox"]').forEach(cb => cb.checked = false);
-      
+
       const featureMode = p.feature_mode || 'single';
       if (featureMode === 'technical_features' || featureMode === 'custom') {
         document.getElementById('use-calc-features').checked = true;
         document.getElementById('calc-features-panel').classList.remove('hidden');
-        
+
         let preset = p.feature_preset || 'custom';
         document.getElementById('feature-preset-select').value = preset;
-        
+
         let selected = [];
         if (p.selected_features) {
           try {
@@ -1633,35 +2002,35 @@
             } else {
               selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
             }
-          } catch(e) {
+          } catch (e) {
             selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
           }
         }
-        
+
         if (selected.length === 0 && preset !== "custom" && FEATURE_PRESETS[preset]) {
           selected = FEATURE_PRESETS[preset];
         }
-        
+
         selected.forEach(featName => {
           const cb = document.getElementById('feat-' + featName);
           if (cb) cb.checked = true;
         });
-        
+
         updateCalculatedFeatures(false);
       } else {
         document.getElementById('use-calc-features').checked = false;
         document.getElementById('calc-features-panel').classList.add('hidden');
       }
-      
+
       document.getElementById('train-feature').value = featureMode;
-      
+
       const parentInput = document.getElementById('train-parent-run-id');
       if (parentInput) parentInput.value = run_id;
       const lineageId = document.getElementById('lineage-run-id');
       if (lineageId) lineageId.textContent = run_id.substring(0, 8);
       const lineageBadge = document.getElementById('lineage-badge');
       if (lineageBadge) lineageBadge.classList.remove('hidden');
-      window.scrollTo({top: 0, behavior: 'smooth'});
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function loadRuns() {
@@ -1680,24 +2049,24 @@
           const tr = document.createElement('tr');
           const p = r.params || {};
           const m = r.metrics || {};
-          
+
           const mape = m.test_lstm_mape_pct ? m.test_lstm_mape_pct.toFixed(2) + '%' : '-';
           const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';
           const mae = m.test_lstm_mae ? m.test_lstm_mae.toFixed(4) : '-';
           const dirAcc = m.directional_accuracy_pct ? m.directional_accuracy_pct.toFixed(1) + '%' : '-';
           const tMode = p.target_mode || '-';
-          
+
           tr.style.cursor = 'pointer';
           tr.title = "Clique para ver os parâmetros";
-          
+
           const isFinished = r.status === 'FINISHED';
           const statusHtml = `<span class="status-badge ${isFinished ? 'status-finished' : 'status-failed'}">
             ${isFinished ? '✓' : '✗'} ${r.status}
           </span>`;
-          
+
           let runIdHtml = `<code>${r.run_id.substring(0, 8)}</code>`;
           if (r.tags && r.tags.derived_from) {
-             runIdHtml += `<br><span style="font-size: 9px; color: var(--muted); border: 1px solid var(--panel-border); border-radius: 4px; padding: 1px 4px; display: inline-block; margin-top: 4px; background: rgba(0,0,0,0.2);" title="Derivado do run ${r.tags.derived_from}">↳ de ${r.tags.derived_from.substring(0,8)}</span>`;
+            runIdHtml += `<br><span style="font-size: 9px; color: var(--muted); border: 1px solid var(--panel-border); border-radius: 4px; padding: 1px 4px; display: inline-block; margin-top: 4px; background: rgba(0,0,0,0.2);" title="Derivado do run ${r.tags.derived_from}">↳ de ${r.tags.derived_from.substring(0, 8)}</span>`;
           }
 
           tr.innerHTML = `
@@ -1709,25 +2078,25 @@
             <td>${mae}</td>
             <td style="color: ${m.directional_accuracy_pct > 50 ? 'var(--success)' : 'inherit'}">${dirAcc}</td>
           `;
-          
+
           tr.onclick = () => {
             const el = document.getElementById('details-' + r.run_id);
-            if(el) el.classList.toggle('hidden');
+            if (el) el.classList.toggle('hidden');
           };
-          
+
           tbody.appendChild(tr);
-          
+
           const detailsTr = document.createElement('tr');
           detailsTr.id = 'details-' + r.run_id;
           detailsTr.className = 'hidden';
-          
+
           let paramsHtml = '<div style="display: flex; flex-wrap: wrap; gap: 8px;">';
           for (const [k, v] of Object.entries(p)) {
             const displayVal = String(v).replace(/,/g, ', ');
             paramsHtml += `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 4px; padding: 4px 8px; font-size: 12px; max-width: 100%; word-break: break-word;"><span style="color: var(--muted); margin-right: 4px;">${k}:</span><span style="color: var(--text); font-weight: 500;">${displayVal}</span></div>`;
           }
           paramsHtml += '</div>';
-          
+
           let compareBtn = '';
           if (r.tags && r.tags.derived_from) {
             compareBtn = `<button class="secondary" style="padding: 4px 10px; font-size: 11px; margin-right: 8px; background: rgba(59, 130, 246, 0.15); border: 1px solid var(--primary); color: #93c5fd;" onclick='compareLineage("${r.run_id}", "${r.tags.derived_from}")'>📊 Comparar com Pai</button>`;
@@ -1757,34 +2126,34 @@
       const btn = document.getElementById('train-btn');
       const errEl = document.getElementById('train-error');
       const succEl = document.getElementById('train-success');
-      
+
       errEl.classList.add('hidden');
       succEl.classList.add('hidden');
-      
+
       btn.innerHTML = '<span style="display: inline-block; animation: pulse 1.5s infinite;">Executando Pipeline... (Isso pode levar minutos)</span>';
       btn.disabled = true;
-      
+
       const pipeline = document.getElementById('train-pipeline');
       pipeline.classList.remove('hidden');
-      for(let i=1; i<=4; i++) {
-        document.getElementById('step-'+i).className = 'pipeline-node';
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('step-' + i).className = 'pipeline-node';
       }
-      
+
       let currentStep = 1;
       // Fake progress indicator to give visual feedback on long poll
       const progressInterval = setInterval(() => {
-        if(currentStep > 1 && currentStep <= 3) document.getElementById('step-'+(currentStep-1)).className = 'pipeline-node done';
-        if(currentStep <= 3) {
-          document.getElementById('step-'+currentStep).className = 'pipeline-node active';
+        if (currentStep > 1 && currentStep <= 3) document.getElementById('step-' + (currentStep - 1)).className = 'pipeline-node done';
+        if (currentStep <= 3) {
+          document.getElementById('step-' + currentStep).className = 'pipeline-node active';
           currentStep++;
         }
       }, 4000);
-      
+
       const useCalc = document.getElementById('use-calc-features').checked;
       let featureMode = document.getElementById('train-feature').value;
       let selectedFeatures = null;
       let featurePreset = null;
-      
+
       if (useCalc) {
         const preset = document.getElementById('feature-preset-select').value;
         if (preset === 'custom') {
@@ -1824,13 +2193,13 @@
         feature_scaler_type: document.getElementById('train-feature-scaler').value,
         target_scaler_type: document.getElementById('train-target-scaler').value
       };
-      
+
       const parentId = document.getElementById('train-parent-run-id');
       if (parentId && parentId.value) {
         payload.parent_run_id = parentId.value;
       }
       clearLineage();
-      
+
       try {
         const response = await fetch('/train', {
           method: 'POST',
@@ -1838,7 +2207,7 @@
           body: JSON.stringify(payload)
         });
         const data = await response.json();
-        
+
         if (!response.ok) {
           errEl.textContent = data.detail || JSON.stringify(data, null, 2);
           errEl.classList.remove('hidden');
@@ -1853,14 +2222,14 @@
         errEl.classList.remove('hidden');
       } finally {
         clearInterval(progressInterval);
-        for(let i=1; i<=4; i++) {
-          const st = document.getElementById('step-'+i);
-          if(!errEl.classList.contains('hidden')) st.className = 'pipeline-node error';
+        for (let i = 1; i <= 4; i++) {
+          const st = document.getElementById('step-' + i);
+          if (!errEl.classList.contains('hidden')) st.className = 'pipeline-node error';
           else st.className = 'pipeline-node done';
         }
         btn.textContent = 'Inicializar Pipeline de Treinamento';
         btn.disabled = false;
-        if(errEl.classList.contains('hidden')) {
+        if (errEl.classList.contains('hidden')) {
           setTimeout(() => pipeline.classList.add('hidden'), 8000);
         }
       }
@@ -1869,12 +2238,12 @@
     function compareLineage(childId, parentId) {
       const child = window.allRunsData.find(x => x.run_id === childId);
       const parent = window.allRunsData.find(x => x.run_id === parentId);
-      
+
       if (!child || !parent) {
         alert('O run pai não está nos 100 resultados mais recentes para comparação.');
         return;
       }
-      
+
       let paramDiffs = '';
       for (const [k, v] of Object.entries(child.params)) {
         if (parent.params[k] !== v) {
@@ -1890,7 +2259,7 @@
 
       const mChild = child.metrics || {};
       const mParent = parent.metrics || {};
-      
+
       function metricDiff(name, key, isLowerBetter) {
         const vc = mChild[key];
         const vp = mParent[key];
@@ -1901,13 +2270,13 @@
         let arrow = '';
         if (diff < 0) { color = isLowerBetter ? 'var(--success)' : 'var(--danger)'; arrow = '↓'; }
         if (diff > 0) { color = isLowerBetter ? 'var(--danger)' : 'var(--success)'; arrow = '↑'; }
-        
+
         return `<div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
           <span style="color: var(--muted);">${name}</span>
           <span>${vp.toFixed(4)} ➔ <strong style="color: ${color};">${vc.toFixed(4)} ${arrow} (${diff > 0 ? '+' : ''}${diff.toFixed(4)})</strong></span>
         </div>`;
       }
-      
+
       let metricsHtml = metricDiff('MAPE Teste (%)', 'test_lstm_mape_pct', true);
       metricsHtml += metricDiff('RMSE Teste', 'test_lstm_rmse', true);
       metricsHtml += metricDiff('MAE Teste', 'test_lstm_mae', true);
@@ -1916,69 +2285,69 @@
 
       let insights = [];
       let score = 0;
-      
+
       const diffMAPE = (mChild.test_lstm_mape_pct || 0) - (mParent.test_lstm_mape_pct || 0);
       const diffRMSE = (mChild.test_lstm_rmse || 0) - (mParent.test_lstm_rmse || 0);
       const diffMAE = (mChild.test_lstm_mae || 0) - (mParent.test_lstm_mae || 0);
       const diffDIR = (mChild.directional_accuracy_pct || 0) - (mParent.directional_accuracy_pct || 0);
-      
+
       const vParentMAPE = mParent.test_lstm_mape_pct !== undefined ? mParent.test_lstm_mape_pct.toFixed(2) + '%' : 'N/A';
       const vChildMAPE = mChild.test_lstm_mape_pct !== undefined ? mChild.test_lstm_mape_pct.toFixed(2) + '%' : 'N/A';
-      
+
       const vParentRMSE = mParent.test_lstm_rmse !== undefined ? mParent.test_lstm_rmse.toFixed(4) : 'N/A';
       const vChildRMSE = mChild.test_lstm_rmse !== undefined ? mChild.test_lstm_rmse.toFixed(4) : 'N/A';
-      
+
       const vParentMAE = mParent.test_lstm_mae !== undefined ? mParent.test_lstm_mae.toFixed(4) : 'N/A';
       const vChildMAE = mChild.test_lstm_mae !== undefined ? mChild.test_lstm_mae.toFixed(4) : 'N/A';
-      
+
       const vParentDIR = mParent.directional_accuracy_pct !== undefined ? mParent.directional_accuracy_pct.toFixed(1) + '%' : 'N/A';
       const vChildDIR = mChild.directional_accuracy_pct !== undefined ? mChild.directional_accuracy_pct.toFixed(1) + '%' : 'N/A';
 
       // 1. Métricas Insights
       if (Math.abs(diffMAPE) > 0.001) {
-        if (diffMAPE < 0) { 
-          insights.push(`O erro percentual médio (<strong>MAPE</strong>) melhorou de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, indicando maior precisão percentual geral.`); 
-          score++; 
-        } else { 
-          insights.push(`O erro percentual médio (<strong>MAPE</strong>) subiu de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, revelando perda de acurácia no preço previsto.`); 
-          score--; 
+        if (diffMAPE < 0) {
+          insights.push(`O erro percentual médio (<strong>MAPE</strong>) melhorou de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, indicando maior precisão percentual geral.`);
+          score++;
+        } else {
+          insights.push(`O erro percentual médio (<strong>MAPE</strong>) subiu de <strong>${vParentMAPE}</strong> para <strong>${vChildMAPE}</strong>, revelando perda de acurácia no preço previsto.`);
+          score--;
         }
       }
-      
+
       if (Math.abs(diffRMSE) > 0.0001) {
-        if (diffRMSE < 0) { 
-          insights.push(`O <strong>RMSE</strong> reduziu de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, indicando menor ocorrência de grandes erros (outliers/desvios de pico).`); 
-          score++; 
-        } else { 
-          insights.push(`O <strong>RMSE</strong> aumentou de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, apontando que o modelo cometeu desvios mais graves em dias atípicos.`); 
-          score--; 
+        if (diffRMSE < 0) {
+          insights.push(`O <strong>RMSE</strong> reduziu de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, indicando menor ocorrência de grandes erros (outliers/desvios de pico).`);
+          score++;
+        } else {
+          insights.push(`O <strong>RMSE</strong> aumentou de <strong>${vParentRMSE}</strong> para <strong>${vChildRMSE}</strong>, apontando que o modelo cometeu desvios mais graves em dias atípicos.`);
+          score--;
         }
       }
-      
+
       if (Math.abs(diffMAE) > 0.0001) {
-        if (diffMAE < 0) { 
-          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) caiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, mostrando que a distância absoluta média em R$ diminuiu.`); 
-          score++; 
-        } else { 
-          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) subiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, sinalizando desvio financeiro médio maior.`); 
-          score--; 
+        if (diffMAE < 0) {
+          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) caiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, mostrando que a distância absoluta média em R$ diminuiu.`);
+          score++;
+        } else {
+          insights.push(`O desvio absoluto médio (<strong>MAE</strong>) subiu de <strong>${vParentMAE}</strong> para <strong>${vChildMAE}</strong>, sinalizando desvio financeiro médio maior.`);
+          score--;
         }
       }
-      
+
       if (Math.abs(diffDIR) > 0.1) {
-        if (diffDIR > 0) { 
-          insights.push(`A <strong>Acurácia Direcional</strong> aumentou de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, otimizando o acerto de tendência diária (alta/baixa).`); 
-          score++; 
-        } else { 
-          insights.push(`A <strong>Acurácia Direcional</strong> caiu de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, reduzindo a assertividade na previsão do sentido do movimento.`); 
-          score--; 
+        if (diffDIR > 0) {
+          insights.push(`A <strong>Acurácia Direcional</strong> aumentou de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, otimizando o acerto de tendência diária (alta/baixa).`);
+          score++;
+        } else {
+          insights.push(`A <strong>Acurácia Direcional</strong> caiu de <strong>${vParentDIR}</strong> para <strong>${vChildDIR}</strong>, reduzindo a assertividade na previsão do sentido do movimento.`);
+          score--;
         }
       }
 
       // 2. Parâmetros Mutados Insights
       const pParent = parent.params || {};
       const pChild = child.params || {};
-      
+
       for (const [k, v] of Object.entries(pChild)) {
         const pValParent = pParent[k];
         if (pValParent !== undefined && pValParent !== v) {
@@ -2026,28 +2395,28 @@
           }
         }
       }
-      
+
       let insightHtml = '';
       if (insights.length > 0) {
-        insightHtml = '<ul style="margin: 0 0 10px 16px; padding: 0; list-style-type: disc;">' + 
-                      insights.map(item => `<li style="margin-bottom: 6px; color: var(--text);">${item}</li>`).join('') + 
-                      '</ul>';
+        insightHtml = '<ul style="margin: 0 0 10px 16px; padding: 0; list-style-type: disc;">' +
+          insights.map(item => `<li style="margin-bottom: 6px; color: var(--text);">${item}</li>`).join('') +
+          '</ul>';
       } else {
         insightHtml = '<p style="margin: 0 0 8px 0; color: var(--text);">A diferença entre os modelos foi muito pequena para gerar um insight significativo.</p>';
       }
-      
+
       let conclusion = '';
       if (score >= 2) conclusion = "<span style='color: var(--success); font-weight: bold;'>🏆 Conclusão: A mutação foi um SUCESSO. A performance geral melhorou substancialmente!</span>";
       else if (score === 1) conclusion = "<span style='color: var(--success); font-weight: bold;'>✅ Conclusão: Saldo positivo leve. Vale a pena manter as alterações.</span>";
       else if (score === 0) conclusion = "<span style='color: var(--muted); font-weight: bold;'>⚖️ Conclusão: Empate técnico ou mudanças irrelevantes. Impacto não conclusivo.</span>";
       else if (score === -1) conclusion = "<span style='color: var(--danger); font-weight: bold;'>⚠️ Conclusão: A mutação prejudicou o modelo em métricas chaves.</span>";
       else conclusion = "<span style='color: var(--danger); font-weight: bold;'>❌ Conclusão: Regressão severa. Recomendado reverter hiperparâmetros.</span>";
- 
+
       document.getElementById('lineage-modal-content').innerHTML = `
         <div style="margin-bottom: 16px; text-align: center; font-size: 13px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px;">
-          <span style="color: var(--muted);">Modelo Base (Pai):</span> <code>${parentId.substring(0,8)}</code> 
+          <span style="color: var(--muted);">Modelo Base (Pai):</span> <code>${parentId.substring(0, 8)}</code> 
           <strong style="margin: 0 10px;">➔</strong> 
-          <span style="color: var(--muted);">Modelo Derivado (Filho):</span> <code style="color: var(--accent-hover);">${childId.substring(0,8)}</code>
+          <span style="color: var(--muted);">Modelo Derivado (Filho):</span> <code style="color: var(--accent-hover);">${childId.substring(0, 8)}</code>
         </div>
         
         <h4 style="margin: 0 0 10px 0; color: var(--text); border-bottom: 1px solid var(--panel-border); padding-bottom: 4px;">🛠️ O que mudou?</h4>
@@ -2062,34 +2431,76 @@
           <div style="margin-top: 8px;">${conclusion}</div>
         </div>
       `;
-      
+
       const modal = document.getElementById('lineage-modal');
       modal.classList.remove('hidden');
       modal.style.display = 'flex';
     }
 
+    function openImageModal() {
+      const srcImg = document.getElementById('mc-image').src;
+      if (!srcImg) return;
+      const modal = document.getElementById('image-modal');
+      const modalImg = document.getElementById('modal-img-content');
+      modalImg.src = srcImg;
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      setTimeout(() => {
+        modal.style.opacity = '1';
+      }, 10);
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('image-modal');
+      modal.style.opacity = '0';
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }, 300);
+    }
+
     // Initialize
     renderCalculatedFeatures();
-    
+
     // Reseta qualquer run pai persistida pelo cache de formulário do navegador
     clearLineage();
-    
+
     let initialTab = localStorage.getItem('activeTab') || 'home';
     if (!ENABLE_TRAINING_API && initialTab === 'train') {
       initialTab = 'home';
     }
     showTab(initialTab);
-    
+
     // Add simple pulse animation for the training button and pipeline steps
     const style = document.createElement('style');
     style.innerHTML = `
       @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-      
-      
-      
-      
     `;
     document.head.appendChild(style);
+
+    // Atualiza automaticamente a telemetria quando qualquer botão do portal é clicado
+    document.addEventListener('click', (event) => {
+      if (event.target.closest('button')) {
+        setTimeout(loadTelemetry, 150);
+      }
+    });
   </script>
+
+  <!-- Lightbox Modal para o Gráfico de Performance -->
+  <div id="image-modal" class="hidden"
+    style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+    <div
+      style="position: relative; max-width: 90%; max-height: 90%; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+      <button onclick="closeImageModal()"
+        style="position: absolute; top: -12px; right: -12px; width: 30px; height: 30px; border-radius: 50%; background: #ef4444; color: #fff; border: 2px solid #fff; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.2s;"
+        onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">✕</button>
+      <img id="modal-img-content" src="" alt="Performance Ampliada"
+        style="max-width: 100%; max-height: 80vh; border-radius: 6px; display: block;" />
+      <div style="text-align: center; margin-top: 10px; font-size: 11px; color: #a0aec0; font-weight: 500;">
+        Gráfico de Performance e Curva de Perdas (Treino/Validação)
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>

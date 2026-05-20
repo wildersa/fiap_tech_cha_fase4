@@ -33,6 +33,8 @@ import pandas as pd
 from src.data_loader import normalize_columns, ensure_datetime_index, add_features
 import psutil
 import onnxruntime as ort
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -69,6 +71,10 @@ APP_METRICS = {
     "total_errors": 0,
     "prediction_requests": 0,
     "last_prediction": None,
+    "last_training_time_sec": None,
+    "total_inference_time_sec": 0.0,
+    "inference_requests": 0,
+    "last_inference_time_sec": 0.0,
 }
 TELEMETRY_HISTORY = deque(maxlen=100)
 
@@ -240,7 +246,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_sch
 
 # Garantir que a API aponte para o MLflow correto localmente
 if ENABLE_TRAINING_API:
-    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
         if not mlflow_path.is_absolute():
@@ -474,16 +480,8 @@ def predict_next(closes_payload: List[float]) -> dict:
 
 
 def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
-    # 1. Carregar preprocessor e session. Se houver preprocessor multivariado, tenta ele primeiro.
-    preprocessor = None
-    session = None
-    try:
-        preprocessor = load_preprocessor_multi()
-        session = load_predictor_multi()
-    except Exception:
-        # Fallback para o modelo padrão (univariado)
-        preprocessor = load_preprocessor()
-        session = load_predictor()
+    preprocessor = load_preprocessor_multi()
+    session = load_predictor_multi()
 
     # 1. Converter para DataFrame
     df = pd.DataFrame(rows_payload)
@@ -622,7 +620,7 @@ async def collect_app_metrics(request, call_next):
 
         snapshot = {
             "timestamp": time.strftime("%H:%M:%S"),
-            "latency_ms": latency_ms,
+            "latency_ms": round(APP_METRICS["last_inference_time_sec"] * 1000, 2),
             "cpu_percent": cpu,
             "memory_mb": mem_mb
         }
@@ -723,12 +721,14 @@ def telemetry_payload() -> dict:
     total_requests = APP_METRICS["total_requests"]
     avg_latency_ms = (APP_METRICS["total_latency_sec"] / total_requests * 1000) if total_requests else 0.0
 
-    # Recupera os dados diretamente do registro do Prometheus para provar a instrumentação e a fonte da verdade!
     cpu = REGISTRY.get_sample_value('api_cpu_usage_percent') or 0.0
     mem_bytes = REGISTRY.get_sample_value('api_memory_usage_bytes') or 0.0
     sys_mem = REGISTRY.get_sample_value('api_system_memory_percent') or 0.0
     last_lat = REGISTRY.get_sample_value('api_last_latency_ms') or 0.0
     errs = REGISTRY.get_sample_value('api_errors_total_total') or REGISTRY.get_sample_value('api_errors_total') or 0.0
+
+    avg_inference_ms = (APP_METRICS["total_inference_time_sec"] / APP_METRICS["inference_requests"] * 1000) if APP_METRICS["inference_requests"] else 0.0
+    last_inference_ms = APP_METRICS["last_inference_time_sec"] * 1000
 
     return {
         "uptime_seconds": round(time.time() - START_TIME, 2),
@@ -738,6 +738,14 @@ def telemetry_payload() -> dict:
             "total_errors": int(errs),
             "average_response_time_ms": round(avg_latency_ms, 2),
             "last_response_time_ms": round(last_lat, 2),
+        },
+        "inference": {
+            "average_time_ms": round(avg_inference_ms, 2),
+            "last_time_ms": round(last_inference_ms, 2),
+        },
+        "training": {
+            "enabled": ENABLE_TRAINING_API,
+            "last_time_sec": round(APP_METRICS["last_training_time_sec"], 2) if APP_METRICS.get("last_training_time_sec") is not None else None,
         },
         "resources": {
             "cpu_percent": cpu,
@@ -876,7 +884,10 @@ def train_model(req: TrainRequest):
         raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
     cfg = TrainConfig(**req.model_dump())
     try:
+        t0 = time.time()
         results = run_training_pipeline(cfg)
+        training_time = time.time() - t0
+        APP_METRICS["last_training_time_sec"] = training_time
         
         # Limpa o cache da API para carregar o novo modelo automaticamente se ele foi promovido
         load_predictor.cache_clear()
@@ -903,7 +914,12 @@ def train_model(req: TrainRequest):
 )
 def predict(request: PredictRequest):
     try:
+        t0 = time.time()
         result = predict_next(request.closes)
+        inference_time = time.time() - t0
+        APP_METRICS["last_inference_time_sec"] = inference_time
+        APP_METRICS["total_inference_time_sec"] += inference_time
+        APP_METRICS["inference_requests"] += 1
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -934,8 +950,13 @@ def predict(request: PredictRequest):
 )
 def predict_ohlcv(request: PredictOhlcvRequest):
     try:
+        t0 = time.time()
         rows_dict = [row.model_dump() for row in request.rows]
         result = predict_next_ohlcv(rows_dict)
+        inference_time = time.time() - t0
+        APP_METRICS["last_inference_time_sec"] = inference_time
+        APP_METRICS["total_inference_time_sec"] += inference_time
+        APP_METRICS["inference_requests"] += 1
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

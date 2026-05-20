@@ -12,21 +12,27 @@ RUN pip install --no-cache-dir poetry==1.8.2
 # Copia os arquivos de dependencia do poetry
 COPY pyproject.toml poetry.lock ./
 
-# Define o parametro de ambiente (prod ou dev). O padrao eh prod (API/Inferencia apenas).
+# Opções de build: prod (produção), dev-cpu (treino CPU leve) ou dev-cuda (treino GPU pesado)
 ARG ENV=prod
 
-# Instala dependencias condicionalmente (sem criar virtualenv)
+# Instala dependencias condicionalmente
 RUN poetry config virtualenvs.create false && \
     if [ "$ENV" = "prod" ]; then \
-      echo ">> Construindo imagem de PRODUCAO (Ignorando dependencias de treino: Torch, MLflow...)" && \
+      echo ">> Construindo imagem de PRODUCAO (Sem dependencias de treino)" && \
       poetry install --only main --no-interaction --no-ansi; \
+    elif [ "$ENV" = "dev-cpu" ]; then \
+      echo ">> Construindo imagem de DESENVOLVIMENTO CPU (Instalando dependencias + Torch CPU)" && \
+      poetry install --no-interaction --no-ansi --without train && \
+      pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+      pip install --no-cache-dir "mlflow>=3.0.0,<4.0.0" "yfinance>=0.2.50" "matplotlib>=3.9.0" "onnx>=1.21.0" "onnxscript>=0.7.0"; \
     else \
-      echo ">> Construindo imagem de DESENVOLVIMENTO (Instalando ecosistema completo...)" && \
+      echo ">> Construindo imagem de DESENVOLVIMENTO CUDA/GPU (Instalando tudo, incluindo PyTorch CUDA)" && \
       poetry install --no-interaction --no-ansi; \
     fi
 
 COPY src/ ./src/
 COPY models/ ./models/
+COPY assets/ ./assets/
 
 ENV PYTHONPATH=/app
 ENV MODEL_DIR=/app/models/lstm_petr4
