@@ -12,8 +12,14 @@ RUN pip install --no-cache-dir poetry==1.8.2
 # Copia os arquivos de dependencia do poetry
 COPY pyproject.toml poetry.lock ./
 
-# Opções de build: prod (produção), dev-cpu (treino CPU leve) ou dev-cuda (treino GPU pesado)
+# Opções de build:
+# - prod: somente inferência, empacota os artefatos de MODEL_BUNDLE_DIR dentro da imagem.
+# - dev-cpu/dev-cuda: desenvolvimento/treino; os diretórios podem ser sobrescritos por env ou volume no docker run.
 ARG ENV=prod
+ARG MODEL_BUNDLE_DIR=models
+ARG ENABLE_TRAINING_API=false
+ARG MODEL_DIR=/app/models/lstm_petr4
+ARG MODEL_DIR_MULTI=/app/models/lstm_petr4_multi
 
 # Instala dependencias condicionalmente
 RUN poetry config virtualenvs.create false && \
@@ -31,11 +37,15 @@ RUN poetry config virtualenvs.create false && \
     fi
 
 COPY src/ ./src/
-COPY models/ ./models/
+# No modo prod/inferencia, esta pasta vira parte do pacote imutavel.
+# Ela deve conter ao menos lstm_petr4/ e lstm_petr4_multi/ com model.onnx e preprocessor.joblib.
+COPY ${MODEL_BUNDLE_DIR}/ ./models/
 COPY assets/ ./assets/
 
 ENV PYTHONPATH=/app
-ENV MODEL_DIR=/app/models/lstm_petr4
+ENV ENABLE_TRAINING_API=${ENABLE_TRAINING_API}
+ENV MODEL_DIR=${MODEL_DIR}
+ENV MODEL_DIR_MULTI=${MODEL_DIR_MULTI}
 
 EXPOSE 8000
 

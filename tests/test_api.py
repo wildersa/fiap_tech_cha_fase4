@@ -7,8 +7,18 @@ from src.api import app, MODEL_DIR
 from sklearn.preprocessing import StandardScaler
 import os
 from pathlib import Path
+from src.api import _run_selection_record, _select_best_run, refresh_models_for_runtime
 
 client = TestClient(app)
+
+
+def _mock_finished_run(run_id, metrics, params=None):
+    run = MagicMock()
+    run.info.run_id = run_id
+    run.info.status = "FINISHED"
+    run.data.metrics = metrics
+    run.data.params = params or {"window_size": "20", "target_mode": "log_returns", "feature_mode": "single"}
+    return run
 
 @pytest.fixture
 def mock_preprocessor():
@@ -42,6 +52,67 @@ def test_model_card_empty():
         response = client.get("/model-card")
         assert response.status_code == 200
         assert response.json()["evaluation_details"]["artifacts_available"]["model_onnx"] is False
+
+
+def test_best_run_selection_prioritizes_positive_baseline_gain():
+    high_direction_lower_gain = _run_selection_record(_mock_finished_run(
+        "direction",
+        {"test_lstm_mape_pct": 1.19, "gain_mape_pct": 1.5, "directional_accuracy_pct": 58.9},
+    ))
+    higher_gain = _run_selection_record(_mock_finished_run(
+        "gain",
+        {"test_lstm_mape_pct": 1.19, "gain_mape_pct": 1.6, "directional_accuracy_pct": 57.0},
+    ))
+    negative_gain_low_mape = _run_selection_record(_mock_finished_run(
+        "low_mape",
+        {"test_lstm_mape_pct": 1.07, "gain_mape_pct": -0.2, "directional_accuracy_pct": 53.2},
+    ))
+
+    best = _select_best_run([high_direction_lower_gain, higher_gain, negative_gain_low_mape])
+
+    assert best["run"].info.run_id == "gain"
+
+
+def test_best_run_selection_accepts_baseline_gain_alias():
+    alias_gain = _run_selection_record(_mock_finished_run(
+        "alias_gain",
+        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 2.0, "directional_accuracy_pct": 54.0},
+    ))
+    logged_gain = _run_selection_record(_mock_finished_run(
+        "logged_gain",
+        {"test_lstm_mape_pct": 1.18, "gain_mape_pct": 1.5, "directional_accuracy_pct": 58.0},
+    ))
+
+    best = _select_best_run([logged_gain, alias_gain])
+
+    assert best["run"].info.run_id == "alias_gain"
+
+
+def test_best_run_selection_falls_back_to_lowest_mape_without_positive_gain():
+    low_mape = _run_selection_record(_mock_finished_run(
+        "low_mape",
+        {"test_lstm_mape_pct": 1.07, "gain_mape_pct": -0.2, "directional_accuracy_pct": 53.2},
+    ))
+    high_mape = _run_selection_record(_mock_finished_run(
+        "high_mape",
+        {"test_lstm_mape_pct": 1.21, "gain_mape_pct": -0.0, "directional_accuracy_pct": 50.8},
+    ))
+
+    best = _select_best_run([high_mape, low_mape])
+
+    assert best["run"].info.run_id == "low_mape"
+
+
+@patch("src.api.sync_best_model_from_mlflow")
+def test_refresh_models_syncs_only_in_dev_train_mode(mock_sync):
+    with patch("src.api.ENABLE_TRAINING_API", True):
+        refresh_models_for_runtime(force_best=True)
+    mock_sync.assert_called_once_with(force_best=True)
+
+    mock_sync.reset_mock()
+    with patch("src.api.ENABLE_TRAINING_API", False):
+        refresh_models_for_runtime(force_best=True)
+    mock_sync.assert_not_called()
 
 def test_model_card_types():
     with patch("src.api.MODEL_DIR", Path("/non/existent/single")), patch("src.api.MODEL_DIR_MULTI", Path("/non/existent/multi")):

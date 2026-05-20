@@ -53,13 +53,24 @@ Focado em baixo consumo de memória, inicialização imediata e segurança. Util
   *   **📊 Monitoramento, Diagnóstico & Interface**
       *   `GET /dashboard`: Renderiza a interface gráfica do painel de controle.
       *   `GET /health`: Liveness/readiness, retornando o status operacional e pasta de modelos.
-      *   `GET /model-card`: Retorna a ficha técnica detalhada do modelo em formato AWS SageMaker Model Card (`?type=single` ou `?type=multi`).
+      *   `GET /model-card`: Retorna a ficha técnica detalhada do modelo ativo (`?type=single` ou `?type=multi`).
       *   `GET /model-image`: Fornece a imagem PNG contendo o gráfico de perda (Loss) e de performance offline do modelo ativo.
       *   `GET /telemetry`: Retorna métricas brutas de CPU, memória RAM e latência de requisições. Endpoint simples usado pra capturar dados do metrics e guardar em memória a cada interação com o portal. Útil pra demonstrar telemetria no dashboard.
       *   `GET /metrics`: Endpoint de scraping do Prometheus exposto pelo instrumentador de APIs.
-- **Build da imagem Docker (Produção)**:
+- **Build da imagem Docker (Produção / Inferência Empacotada)**:
+  A imagem de produção nasce em `ENABLE_TRAINING_API=false` e copia os artefatos de `MODEL_BUNDLE_DIR` para dentro de `/app/models`. Esse é o fluxo para deploy imutável: a API não consulta MLflow e usa apenas o modelo já empacotado.
   ```bash
-  docker build --build-arg ENV=prod -t stock-api:prod .
+  docker build \
+    --build-arg ENV=prod \
+    --build-arg MODEL_BUNDLE_DIR=models \
+    --build-arg ENABLE_TRAINING_API=false \
+    --build-arg MODEL_DIR=/app/models/lstm_petr4 \
+    --build-arg MODEL_DIR_MULTI=/app/models/lstm_petr4_multi \
+    -t stock-api:prod .
+  ```
+  Para executar:
+  ```bash
+  docker run --rm -p 8000:8000 stock-api:prod
   ```
 
 ### 2. Modo de Treinamento e Desenvolvimento
@@ -123,15 +134,33 @@ flowchart LR
   ```bash
   $env:ENABLE_TRAINING_API="true" ; poetry run uvicorn src.api:app --reload
   ```
+  Nesse modo dev/train, `/predict` e `/model-card` sincronizam automaticamente o melhor modelo elegível do MLflow para `MODEL_DIR`/`MODEL_DIR_MULTI` antes de carregar os artefatos.
+- **Somente Inferência**:
+  Defina `ENABLE_TRAINING_API=false` e aponte `MODEL_DIR`/`MODEL_DIR_MULTI` para os artefatos empacotados. Nesse modo a API não consulta MLflow, não promove modelos e usa exatamente o modelo apontado:
+  ```bash
+  $env:ENABLE_TRAINING_API="false" ; $env:MODEL_DIR="models/lstm_petr4" ; poetry run uvicorn src.api:app
+  ```
 - **Build da imagem Docker (Treino / Desenvolvimento)**:
-  Você pode escolher construir a imagem de desenvolvimento com suporte a CPU ou com GPU (CUDA) para o PyTorch:
+  Você pode escolher construir a imagem de desenvolvimento com suporte a CPU ou com GPU (CUDA) para o PyTorch. Nesse modo, a pasta de modelos pode ser montada por volume e apontada por env no runtime:
   *   **Opção 1: Treino em CPU (Leve)** (Recomendado para testes locais sem GPU dedicada):
       ```bash
-      docker build --build-arg ENV=dev-cpu -t stock-api:dev-cpu .
+      docker build \
+        --build-arg ENV=dev-cpu \
+        --build-arg ENABLE_TRAINING_API=true \
+        --build-arg MODEL_DIR=/workspace/models/lstm_petr4 \
+        --build-arg MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi \
+        -t stock-api:dev-cpu .
+
+      docker run --rm -p 8000:8000 \
+        -e ENABLE_TRAINING_API=true \
+        -e MODEL_DIR=/workspace/models/lstm_petr4 \
+        -e MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi \
+        -v "$PWD/models:/workspace/models" \
+        stock-api:dev-cpu
       ```
   *   **Opção 2: Treino em GPU (CUDA - Pesado)** (Recomendado para treinamento com aceleração de hardware):
       ```bash
-      docker build --build-arg ENV=dev-cuda -t stock-api:dev-cuda .
+      docker build --build-arg ENV=dev-cuda --build-arg ENABLE_TRAINING_API=true -t stock-api:dev-cuda .
       ```
 
 ---

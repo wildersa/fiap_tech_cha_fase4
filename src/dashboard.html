@@ -643,7 +643,8 @@
       <div class="muted" style="margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
         <span
           style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success);"></span>
-        Modelo ativo | Ativo: <code>__MODEL_DIR__</code>
+        Modo: <strong>__RUNTIME_MODE_LABEL__</strong> | Fonte: <span>__MODEL_SOURCE_POLICY__</span> |
+        Single: <code>__MODEL_DIR__</code> | Multi: <code>__MODEL_DIR_MULTI__</code>
       </div>
 
       <section id="home" style="display: flex; flex-direction: column; gap: 20px;">
@@ -667,17 +668,19 @@
           </div>
         </div>
 
-        <!-- Título de Seção do Model Card -->
-        <div
-          style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model
-              Card</h2>
-            <div class="toggle-group"
-              style="display: inline-flex; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-left: 10px; gap: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
-              <button id="btn-mc-single" class="mc-toggle-btn active" onclick="changeModelCardView('single')">Univariado (Single)</button>
-              <button id="btn-mc-multi" class="mc-toggle-btn" onclick="changeModelCardView('multi')">Multivariado (Multi)</button>
-            </div>
+	        <!-- Título de Seção do Model Card -->
+	        <div
+	          style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; margin-top: 10px; gap: 16px; flex-wrap: wrap;">
+	          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+	            <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica do Modelo</h2>
+	            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+	              <span class="muted" style="font-size: 10px; text-transform: uppercase; font-weight: 700;">Escolha o modelo:</span>
+	              <div class="toggle-group"
+	                style="display: inline-flex; background: rgba(255,255,255,0.04); padding: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); gap: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
+	                <button id="btn-mc-single" class="mc-toggle-btn active" onclick="changeModelCardView('single')">Univariado (Single)</button>
+	                <button id="btn-mc-multi" class="mc-toggle-btn" onclick="changeModelCardView('multi')">Multivariado (Multi)</button>
+	              </div>
+	            </div>
             <span id="mc-risk-rating" class="status-badge"
               style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium
               Risk</span>
@@ -765,6 +768,21 @@
                   <strong id="mc-run-id"
                     style="font-size: 11px; font-family: var(--font-mono); color: var(--primary); word-break: break-all;">-</strong>
                 </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Modo Runtime</span>
+                  <strong id="mc-runtime-mode" style="font-size: 13px;">-</strong>
+                </div>
+                <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
+                  <span>Fonte do Modelo</span>
+                  <strong id="mc-model-source" style="font-size: 11px; line-height: 1.3;">-</strong>
+                </div>
+              </div>
+              <div id="mc-features-container" style="display: none;">
+                <span class="muted"
+                  style="font-size: 9px; text-transform: uppercase; display: block; margin-bottom: 2px;">Features usadas
+                  (<strong id="mc-feature-count" style="font-size: 9px;">-</strong>)</span>
+                <p id="mc-feature-cols"
+                  style="font-size: 11px; line-height: 1.4; margin: 0; color: #cbd5e1; word-break: break-word;">-</p>
               </div>
               <div>
                 <span class="muted"
@@ -1614,6 +1632,7 @@
         const overview = data.model_overview || {};
         const training = data.training_details || {};
         const evaluation = data.evaluation_details || {};
+        const deployment = data.deployment_details || {};
         const additional = data.additional_information || {};
 
         const art = evaluation.artifacts_available || {};
@@ -1683,15 +1702,19 @@
         document.getElementById('mc-target-scaler').textContent = training.target_scaler_type || '-';
         document.getElementById('mc-data-source').textContent = training.data_source || '-';
         document.getElementById('mc-run-id').textContent = training.mlflow_run_id || '-';
+        document.getElementById('mc-runtime-mode').textContent = deployment.runtime_mode_label || '-';
+        document.getElementById('mc-model-source').textContent = deployment.model_source_policy || '-';
 
         const featureCols = training.feature_cols || [];
         const featureContainer = document.getElementById('mc-features-container');
-        if (featureCols.length > 1) {
-            featureContainer.style.display = 'block';
-            document.getElementById('mc-feature-count').textContent = training.feature_count || featureCols.length;
-            document.getElementById('mc-feature-cols').textContent = featureCols.join(', ');
-        } else {
-            featureContainer.style.display = 'none';
+        if (featureContainer && featureCols.length > 1) {
+          featureContainer.style.display = 'block';
+          const featureCountEl = document.getElementById('mc-feature-count');
+          const featureColsEl = document.getElementById('mc-feature-cols');
+          if (featureCountEl) featureCountEl.textContent = training.feature_count || featureCols.length;
+          if (featureColsEl) featureColsEl.textContent = featureCols.join(', ');
+        } else if (featureContainer) {
+          featureContainer.style.display = 'none';
         }
 
         document.getElementById('mc-observations').textContent = training.training_observations || '-';
@@ -1717,14 +1740,22 @@
         };
         const gainMapeValue = metricNumber(relativeGain.mape_pct);
 
-        document.getElementById('mc-mape').textContent = formatNumber(lstmTest.mape_pct, 2, '%');
-        document.getElementById('mc-baseline-mape').textContent = formatNumber(baselineTest.mape_pct, 2, '%');
+        const setText = (id, value) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = value;
+          return el;
+        };
+
+        setText('mc-mape', formatNumber(lstmTest.mape_pct, 2, '%'));
+        setText('mc-baseline-mape', formatNumber(baselineTest.mape_pct, 2, '%'));
         const gainMapeEl = document.getElementById('mc-gain-mape');
-        gainMapeEl.textContent = formatGain(gainMapeValue);
-        gainMapeEl.style.color = gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit');
-        document.getElementById('mc-mae').textContent = formatNumber(lstmTest.mae, 2);
-        document.getElementById('mc-rmse').textContent = formatNumber(lstmTest.rmse, 2);
-        document.getElementById('mc-dir').textContent = formatNumber(evalMetrics.directional_accuracy_test_lstm_pct, 1, '%');
+        if (gainMapeEl) {
+          gainMapeEl.textContent = formatGain(gainMapeValue);
+          gainMapeEl.style.color = gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit');
+        }
+        setText('mc-mae', formatNumber(lstmTest.mae, 2));
+        setText('mc-rmse', formatNumber(lstmTest.rmse, 2));
+        setText('mc-dir', formatNumber(evalMetrics.directional_accuracy_test_lstm_pct, 1, '%'));
 
         document.getElementById('mc-ethical').textContent = additional.ethical_considerations || '-';
         document.getElementById('mc-caveats').textContent = additional.caveats_and_recommendations || '-';
@@ -2130,7 +2161,7 @@
 
           const mapeValue = Number(m.test_lstm_mape_pct);
           const baselineMapeValue = Number(m.test_baseline_mape_pct);
-          const gainMapeValue = Number(m.gain_mape_pct);
+          const gainMapeValue = Number(m.baseline_gain_pct ?? m.gain_mape_pct);
           const mape = Number.isFinite(mapeValue) ? mapeValue.toFixed(2) + '%' : '-';
           const baselineMape = Number.isFinite(baselineMapeValue) ? baselineMapeValue.toFixed(2) + '%' : '-';
           const gainMape = Number.isFinite(gainMapeValue) ? (gainMapeValue > 0 ? '+' : '') + gainMapeValue.toFixed(1) + '%' : '-';

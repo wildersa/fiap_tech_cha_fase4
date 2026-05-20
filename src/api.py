@@ -91,6 +91,25 @@ APP_METRICS = {
 TELEMETRY_HISTORY = deque(maxlen=100)
 
 
+def runtime_mode() -> str:
+    return "dev_train" if ENABLE_TRAINING_API else "inference_only"
+
+
+def runtime_mode_label() -> str:
+    return "Dev/Train" if ENABLE_TRAINING_API else "Somente inferencia"
+
+
+def model_source_policy() -> str:
+    if ENABLE_TRAINING_API:
+        return "Melhor run elegivel do MLflow sincronizado para MODEL_DIR/MODEL_DIR_MULTI."
+    return "Artefatos empacotados ou apontados por MODEL_DIR/MODEL_DIR_MULTI, sem sincronizacao MLflow."
+
+
+def refresh_models_for_runtime(force_best: bool = False) -> None:
+    if ENABLE_TRAINING_API:
+        sync_best_model_from_mlflow(force_best=force_best)
+
+
 class PredictRequest(BaseModel):
     symbol: str = Field(
         "PETR4.SA",
@@ -309,6 +328,87 @@ def _best_mape_from_metrics(metrics: dict) -> float | None:
     return None
 
 
+def _selection_mape(metrics: dict) -> float | None:
+    for value in (
+        _nested_metric(metrics, "lstm_test", "mape_pct"),
+        _flat_metric(metrics, "test_lstm_mape_pct"),
+        _nested_metric(metrics, "lstm_val", "mape_pct"),
+        _flat_metric(metrics, "val_lstm_mape_pct"),
+        _flat_metric(metrics, "lstm_mape_pct"),
+    ):
+        if value is not None and value > 0:
+            return value
+    return None
+
+
+def _baseline_gain_pct(metrics: dict) -> float | None:
+    gain = _nested_metric(metrics, "relative_gain_vs_baseline_pct", "mape_pct")
+    if gain is not None:
+        return gain
+    gain = _flat_metric(metrics, "baseline_gain_pct")
+    if gain is not None:
+        return gain
+    return _flat_metric(metrics, "gain_mape_pct")
+
+
+def _directional_accuracy(metrics: dict) -> float:
+    for value in (
+        _flat_metric(metrics, "directional_accuracy_test_lstm_pct"),
+        _flat_metric(metrics, "directional_accuracy_pct"),
+    ):
+        if value is not None:
+            return value
+    return float("-inf")
+
+
+def _int_param(params: dict, key: str, default: int) -> int:
+    try:
+        return int(float(params.get(key, default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _inference_required_rows(params: dict) -> int:
+    window_size = _int_param(params, "window_size", 60)
+    target_mode = params.get("target_mode", "log_returns")
+    feature_mode = params.get("feature_mode", "single")
+    if feature_mode == "single":
+        return window_size + (1 if target_mode in {"log_returns", "returns"} else 0)
+    return window_size + 21
+
+
+def _run_selection_record(run) -> dict | None:
+    metrics = normalize_model_metrics(run.data.metrics)
+    mape = _selection_mape(metrics)
+    if mape is None:
+        return None
+    params = run.data.params or {}
+    return {
+        "run": run,
+        "baseline_gain_pct": _baseline_gain_pct(metrics),
+        "directional_accuracy": _directional_accuracy(metrics),
+        "mape": mape,
+        "inference_required_rows": _inference_required_rows(params),
+    }
+
+
+def _select_best_run(records: list[dict]) -> dict | None:
+    eligible = [r for r in records if r["baseline_gain_pct"] is not None and r["baseline_gain_pct"] > 0]
+    if eligible:
+        return sorted(
+            eligible,
+            key=lambda r: (
+                -r["baseline_gain_pct"],
+                -r["directional_accuracy"],
+                r["mape"],
+                r["inference_required_rows"],
+            ),
+        )[0]
+    if records:
+        return sorted(records, key=lambda r: r["mape"])[0]
+    return None
+
+
 def _section_from_flat(metrics: dict, prefix: str) -> dict:
     return {
         "mae": _flat_metric(metrics, f"{prefix}_mae"),
@@ -343,7 +443,7 @@ def normalize_model_metrics(metrics: dict | None) -> dict:
         section = {
             "mae": _flat_metric(normalized, "gain_mae_pct"),
             "rmse": _flat_metric(normalized, "gain_rmse_pct"),
-            "mape_pct": _flat_metric(normalized, "gain_mape_pct"),
+            "mape_pct": _baseline_gain_pct(normalized),
         }
         section = _drop_empty_values(section)
         if section:
@@ -368,6 +468,11 @@ def normalize_model_metrics(metrics: dict | None) -> dict:
         direction = _flat_metric(normalized, "directional_accuracy_pct")
         if direction is not None:
             normalized["directional_accuracy_test_lstm_pct"] = direction
+
+    gain = _baseline_gain_pct(normalized)
+    if gain is not None:
+        normalized["baseline_gain_pct"] = gain
+        normalized["gain_mape_pct"] = gain
 
     return normalized
 
@@ -395,11 +500,9 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
         client = MlflowClient()
         experiments = client.search_experiments()
         
-        # Encontrar os melhores modelos no MLflow
-        best_run_single = None
-        best_mape_single = float("inf")
-        best_run_multi = None
-        best_mape_multi = float("inf")
+        # Encontrar os melhores modelos no MLflow usando ganho contra baseline como criterio primario.
+        single_candidates = []
+        multi_candidates = []
 
         for exp in experiments:
             runs = client.search_runs(experiment_ids=[exp.experiment_id])
@@ -409,21 +512,26 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
                 feature_mode = r.data.params.get("feature_mode")
                 if not feature_mode:
                     continue
-                mape = _best_mape_from_metrics(normalize_model_metrics(r.data.metrics))
-                if mape is not None and mape > 0:
-                    if feature_mode == "single":
-                        if mape < best_mape_single:
-                            best_mape_single = mape
-                            best_run_single = r
-                    else:
-                        if mape < best_mape_multi:
-                            best_mape_multi = mape
-                            best_run_multi = r
+                record = _run_selection_record(r)
+                if record is None:
+                    continue
+                if feature_mode == "single":
+                    single_candidates.append(record)
+                else:
+                    multi_candidates.append(record)
+
+        best_single = _select_best_run(single_candidates)
+        best_multi = _select_best_run(multi_candidates)
 
         # Função auxiliar para promover modelo para um diretório específico
-        def promote_to_dir(best_run, best_mape, target_dir, label):
-            if best_run is None:
+        def promote_to_dir(best_record, target_dir, label):
+            if best_record is None:
                 return False
+            best_run = best_record["run"]
+            best_mape = best_record["mape"]
+            best_gain = best_record["baseline_gain_pct"]
+            best_directional = best_record["directional_accuracy"]
+            best_required_rows = best_record["inference_required_rows"]
             
             current_mape = float("inf")
             metrics_path = target_dir / "metrics.json"
@@ -437,13 +545,17 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
             current_run_id = current_metadata.get("run_id")
             missing_metrics = not bool(current_metrics.get("lstm_test"))
             should_promote = (
-                best_mape < (current_mape - 1e-6)
-                or missing_metrics
-                or (force_best and current_run_id != best_run.info.run_id)
+                missing_metrics
+                or current_run_id != best_run.info.run_id
             )
 
             if should_promote:
-                print(f"[MLOps] Novo Campeao {label} detectado no MLflow (Run {best_run.info.run_id}) com Validation MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
+                gain_text = f"{best_gain:.2f}%" if best_gain is not None else "sem ganho positivo"
+                print(
+                    f"[MLOps] Campeao {label} pelo ranking baseline/direcional "
+                    f"(Run {best_run.info.run_id}; ganho={gain_text}; direcional={best_directional:.2f}%; "
+                    f"MAPE={best_mape:.4f}%; linhas={best_required_rows}; anterior em disco: {current_mape:.4f}%)"
+                )
                 target_dir.mkdir(parents=True, exist_ok=True)
                 local_path = mlflow.artifacts.download_artifacts(run_id=best_run.info.run_id)
                 src_path = Path(local_path)
@@ -461,14 +573,19 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
                 else:
                     print(f"[MLOps] Aviso: Nenhum artefato {label} copiado de {src_path}")
             else:
-                print(f"[MLOps] O modelo {label} em disco ({current_mape:.4f}%) ja e o melhor ou empata com o melhor do MLflow ({best_mape:.4f}%)")
+                gain_text = f"{best_gain:.2f}%" if best_gain is not None else "sem ganho positivo"
+                print(
+                    f"[MLOps] O modelo {label} em disco ja e o campeao pelo ranking "
+                    f"(ganho={gain_text}; direcional={best_directional:.2f}%; "
+                    f"MAPE={best_mape:.4f}%; linhas={best_required_rows})"
+                )
             return False
 
         # Promove o modelo univariado
-        updated_single = promote_to_dir(best_run_single, best_mape_single, MODEL_DIR, "Univariado")
+        updated_single = promote_to_dir(best_single, MODEL_DIR, "Univariado")
         
         # Promove o modelo multivariado
-        updated_multi = promote_to_dir(best_run_multi, best_mape_multi, MODEL_DIR_MULTI, "Multivariado")
+        updated_multi = promote_to_dir(best_multi, MODEL_DIR_MULTI, "Multivariado")
 
         if updated_single or updated_multi:
             load_preprocessor.cache_clear()
@@ -482,7 +599,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
 
 @app.on_event("startup")
 def startup_event():
-    sync_best_model_from_mlflow()
+    refresh_models_for_runtime()
 
 
 @lru_cache(maxsize=1)
@@ -564,6 +681,7 @@ def build_latest_window(closes: np.ndarray, preprocessor: dict) -> np.ndarray:
 
 
 def predict_next(closes_payload: List[float]) -> dict:
+    refresh_models_for_runtime(force_best=True)
     preprocessor = load_preprocessor()
     session = load_predictor()
     closes = prepare_closes(closes_payload)
@@ -606,6 +724,7 @@ def predict_next(closes_payload: List[float]) -> dict:
 
 
 def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
+    refresh_models_for_runtime(force_best=True)
     preprocessor = load_preprocessor_multi()
     session = load_predictor_multi()
 
@@ -806,7 +925,7 @@ def model_card_payload(model_dir: Path) -> dict:
         if not text_defaults["model_name"].endswith(" (Univariado)"):
             text_defaults["model_name"] = text_defaults["model_name"] + " (Univariado)"
 
-    # Monta a estrutura inspirada no AWS SageMaker Model Cards
+    # Monta a estrutura da ficha tecnica exibida no dashboard
     return {
         "model_overview": {
             "model_name": text_defaults["model_name"],
@@ -840,6 +959,13 @@ def model_card_payload(model_dir: Path) -> dict:
                 "preprocessor_joblib": (model_dir / "preprocessor.joblib").exists(),
                 "metadata_json": metadata_path.exists(),
             }
+        },
+        "deployment_details": {
+            "runtime_mode": runtime_mode(),
+            "runtime_mode_label": runtime_mode_label(),
+            "model_source_policy": model_source_policy(),
+            "active_model_dir": str(model_dir),
+            "selection_is_dynamic": ENABLE_TRAINING_API,
         },
         "additional_information": {
             "ethical_considerations": text_defaults["ethical_considerations"],
@@ -910,14 +1036,15 @@ def home():
 
 @app.get(
     "/model-card",
-    summary="Ficha Técnica (AWS SageMaker Model Card)",
-    description="Retorna a ficha técnica detalhada do modelo em formato JSON, estruturada no padrão do AWS SageMaker Model Cards (seções Model Overview, Training Details, Evaluation Details e Additional Information). Suporta os tipos 'single' ou 'multi'.",
-    response_description="Payload formatado no padrão AWS SageMaker Model Cards contendo governança, parâmetros de treino, métricas de validação e limites de responsabilidade.",
+    summary="Ficha Técnica do Modelo",
+    description="Retorna a ficha técnica detalhada do modelo em formato JSON com visão geral, parâmetros de treino, métricas de validação/teste e limites de responsabilidade. Suporta os tipos 'single' ou 'multi'.",
+    response_description="Payload de ficha técnica contendo governança, parâmetros de treino, métricas de validação e limites de responsabilidade.",
     tags=["Monitoramento & Diagnóstico"]
 )
 def model_card(type: str = "single"):
-    # Garante sincronização das últimas runs antes de responder
-    sync_best_model_from_mlflow(force_best=True)
+    # Em dev/train, garante sincronizacao do melhor run antes de responder.
+    # Em inferencia pura, usa apenas os artefatos apontados/empacotados.
+    refresh_models_for_runtime(force_best=True)
     
     if type == "multi":
         return model_card_payload(MODEL_DIR_MULTI)
@@ -932,6 +1059,7 @@ def model_card(type: str = "single"):
     tags=["Monitoramento & Diagnóstico"]
 )
 def get_model_image(type: str = "single"):
+    refresh_models_for_runtime(force_best=True)
     target_dir = MODEL_DIR_MULTI if type == "multi" else MODEL_DIR
     image_path = target_dir / "model_performance.png"
     if image_path.exists():
@@ -973,12 +1101,13 @@ def get_runs(limit: int = 100):
     
     runs_data = []
     for run in runs:
+        metrics = normalize_model_metrics(run.data.metrics)
         runs_data.append({
             "run_id": run.info.run_id,
             "status": run.info.status,
             "start_time": run.info.start_time,
             "end_time": run.info.end_time,
-            "metrics": run.data.metrics,
+            "metrics": metrics,
             "params": run.data.params,
             "tags": run.data.tags,
         })
@@ -1126,5 +1255,8 @@ def dashboard():
     html = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
     html = html.replace("__SAMPLE_PAYLOAD__", sample_text)
     html = html.replace("__MODEL_DIR__", str(MODEL_DIR))
+    html = html.replace("__MODEL_DIR_MULTI__", str(MODEL_DIR_MULTI))
+    html = html.replace("__RUNTIME_MODE_LABEL__", runtime_mode_label())
+    html = html.replace("__MODEL_SOURCE_POLICY__", model_source_policy())
     html = html.replace("__ENABLE_TRAINING_API__", "true" if ENABLE_TRAINING_API else "false")
     return HTMLResponse(html)
