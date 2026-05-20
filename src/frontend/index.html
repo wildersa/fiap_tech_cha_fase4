@@ -638,7 +638,7 @@
                   <th onclick="sortRuns('target_mode')" style="cursor: pointer;">Alvo <span id="sort-target_mode"></span></th>
                   <th onclick="sortRuns('test_lstm_mape_pct')" style="cursor: pointer;">MAPE LSTM <span id="sort-test_lstm_mape_pct"></span></th>
                   <th onclick="sortRuns('test_baseline_mape_pct')" style="cursor: pointer;">MAPE Baseline <span id="sort-test_baseline_mape_pct"></span></th>
-                  <th onclick="sortRuns('baseline_gain_pct')" style="cursor: pointer;">Ganho MAPE <span id="sort-baseline_gain_pct"></span></th>
+                  <th onclick="sortRuns('baseline_gain_pct')" style="cursor: pointer;">Ganho / Dif. <span id="sort-baseline_gain_pct"></span></th>
                   <th onclick="sortRuns('test_lstm_rmse')" style="cursor: pointer;">RMSE Teste <span id="sort-test_lstm_rmse"></span></th>
                   <th onclick="sortRuns('test_lstm_mae')" style="cursor: pointer;">MAE Teste <span id="sort-test_lstm_mae"></span></th>
                   <th onclick="sortRuns('directional_accuracy_pct')" style="cursor: pointer;">Acurácia Dir. <span id="sort-directional_accuracy_pct"></span></th>
@@ -678,7 +678,7 @@
       enableTrainingApi: "__ENABLE_TRAINING_API__" === "true"
     };
   </script>
-  <script src="/frontend/app.js"></script>
+  <script type="module" src="/frontend/main.js"></script>
 
   <!-- Lightbox Modal para o Gráfico de Performance -->
   <div id="image-modal" class="hidden"

@@ -1,18 +1,15 @@
 """
-API de inferencia do modelo LSTM.
+API de Inferência e MLOps para o modelo StockLSTM.
 
-Contrato de inferencia:
-
-    {
-      "symbol": "PETR4.SA",
-      "closes": [60 fechamentos anteriores]
-    }
-
-A API calcula os log-retornos, aplica o mesmo scaler do treino, executa a LSTM
-e converte o log-retorno previsto para preco de fechamento.
+Este arquivo implementa o servidor FastAPI responsável por:
+1. Servir predições D+1 (próximo fechamento) univariadas e multivariadas.
+2. Fornecer métricas de telemetria e saúde do sistema.
+3. Gerenciar o pipeline de treinamento e promoção automática de modelos (Champion/Challenger).
+4. Em modo dev/train, sincronizar artefatos do MLflow com MODEL_DIR/MODEL_DIR_MULTI.
 """
 
 import sys
+# Configuração de codificação para evitar erros de caractere no Windows
 try:
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -532,6 +529,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
     MLOps Automatic Promotion:
     Sincroniza automaticamente o melhor modelo de tipo 'single' (univariado) para MODEL_DIR,
     e o melhor modelo de tipo multivariado (qualquer outro feature_mode) para MODEL_DIR_MULTI.
+    Esse processo roda apenas em modo dev/train; em inferência pura, a API usa os artefatos já apontados.
     """
     if not ENABLE_TRAINING_API:
         return
@@ -542,7 +540,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
         client = MlflowClient()
         experiments = client.search_experiments()
         
-        # Encontrar os melhores modelos no MLflow usando ganho vs baseline, margem de empate e desempates.
+        # Filtrar candidatos a campeão entre todas as runs finalizadas e elegíveis
         single_candidates = []
         multi_candidates = []
 
@@ -562,10 +560,11 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
                 else:
                     multi_candidates.append(record)
 
+        # Seleciona as melhores runs usando a lógica oficial de ranking (Gain vs Baseline, Directional Accuracy, MAPE)
         best_single = _select_best_run(single_candidates)
         best_multi = _select_best_run(multi_candidates)
 
-        # Função auxiliar para promover modelo para um diretório específico
+        # Função interna para promover um modelo campeão para a pasta de produção ativa
         def promote_to_dir(best_record, target_dir, label):
             if best_record is None:
                 print(f"[MLOps] Nenhum modelo {label} superou o baseline persistente; nenhuma promocao sera feita.")
@@ -1196,11 +1195,15 @@ def delete_run(run_id: str):
 @app.post(
     "/train",
     summary="Iniciar Pipeline de Treinamento",
-    description="Dispara de forma síncrona o pipeline completo de treinamento: download histórico do yfinance, cálculo de features temporais, split de dados, normalização robusta por Anchor Price, treinamento da rede LSTM com AdamW/Early Stopping, validação cega, log no MLflow e salvamento dos artefatos em ONNX/Preprocessor. Se o modelo treinado tiver um MAPE menor que o campeão atual, ele é promovido automaticamente no final do processo.",
+    description="Dispara de forma síncrona o pipeline completo de treinamento. A promoção automática segue a regra Champion/Challenger baseada em ganho vs baseline de MAPE.",
     response_description="Status de sucesso do treinamento, métricas finais obtidas e pasta de saída.",
     tags=["Treinamento & MLOps"]
 )
 def train_model(req: TrainRequest):
+    """
+    Aciona o pipeline de treinamento (src/train/pipeline.py).
+    Após o término, limpa o cache dos modelos para carregar o novo campeão, se houver.
+    """
     if not ENABLE_TRAINING_API:
         raise HTTPException(status_code=501, detail="API de treinamento desabilitada ou dependencias (mlflow) nao instaladas.")
     cfg = TrainConfig(**req.model_dump())
@@ -1211,7 +1214,7 @@ def train_model(req: TrainRequest):
         APP_METRICS["last_training_time_sec"] = training_time
         refresh_models_for_runtime(force_best=True)
         
-        # Limpa o cache da API para carregar o novo modelo automaticamente se ele foi promovido
+        # Invalida o cache para forçar recarregamento do novo campeão
         load_predictor.cache_clear()
         load_preprocessor.cache_clear()
         load_predictor_multi.cache_clear()
@@ -1230,11 +1233,15 @@ def train_model(req: TrainRequest):
 @app.post(
     "/predict",
     summary="Realizar Predição (Inferência D+1)",
-    description="Recebe uma série cronológica recente de fechamentos do ativo (mínimo de window_size + 1), extrai os retornos logarítmicos ou absolutos em tempo real, normaliza a janela de lookback usando os parâmetros salvos no preprocessor, executa a inferência acelerada na sessão ONNX Runtime e decodifica a previsão para o preço de fechamento do dia seguinte (D+1). Também computa a variação projetada absoluta/percentual e a direção (alta/queda).",
+    description="Recebe fechamentos recentes e prevê o próximo dia (D+1) usando o modelo univariado campeão.",
     response_description="Previsão detalhada para o próximo fechamento (D+1) com base no modelo ativo.",
     tags=["Inferência"]
 )
 def predict(request: PredictRequest):
+    """
+    Pipeline de predição univariada (apenas preços de fechamento).
+    Calcula retornos, normaliza, executa LSTM no ONNX e reverte para preço absoluto.
+    """
     try:
         t0 = time.time()
         result = predict_next(request.closes)
@@ -1266,11 +1273,15 @@ def predict(request: PredictRequest):
 @app.post(
     "/predict/ohlcv",
     summary="Realizar Predição Multivariada (Inferência D+1 via OHLCV)",
-    description="Recebe uma série temporal de registros OHLCV recentes, calcula as features correspondentes ao modelo ativo (seja univariado ou multivariado), aplica os normalizadores correspondentes e executa a inferência acelerada ONNX Runtime para prever o fechamento do dia seguinte (D+1).",
+    description="Recebe registros OHLCV e executa a inferência multivariada (D+1) usando o modelo multivariado ativo.",
     response_description="Previsão detalhada para o próximo fechamento (D+1) baseada no modelo ativo.",
     tags=["Inferência"]
 )
 def predict_ohlcv(request: PredictOhlcvRequest):
+    """
+    Pipeline de predição multivariada (OHLCV + indicadores técnicos).
+    Realiza engenharia de features em tempo real antes da inferência ONNX.
+    """
     try:
         t0 = time.time()
         rows_dict = [row.model_dump() for row in request.rows]

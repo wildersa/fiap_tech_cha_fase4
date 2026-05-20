@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import mlflow
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from src.train import (
     TrainConfig,
     create_windowed_sequences,
@@ -17,7 +17,7 @@ from src.train import (
     write_json,
     resolve_feature_columns
 )
-from src.train.pipeline import LEGACY_PREPROCESSING_CUTOFF, _run_start_at_or_before
+import src.train
 
 def test_create_windowed_sequences(synthetic_df):
     window_size = 10
@@ -135,15 +135,6 @@ def test_train_config_default():
     assert cfg.symbol == "PETR4.SA"
 
 
-def test_legacy_preprocessing_cutoff_for_parent_runs():
-    old_run = MagicMock()
-    old_run.info.start_time = int(LEGACY_PREPROCESSING_CUTOFF.timestamp() * 1000)
-    new_run = MagicMock()
-    new_run.info.start_time = old_run.info.start_time + 1000
-
-    assert _run_start_at_or_before(old_run, LEGACY_PREPROCESSING_CUTOFF) is True
-    assert _run_start_at_or_before(new_run, LEGACY_PREPROCESSING_CUTOFF) is False
-
 def test_run_training_pipeline_csv(tmp_path, synthetic_df, temp_model_dir):
     csv_path = tmp_path / "data.csv"
     synthetic_df.to_csv(csv_path)
@@ -159,6 +150,110 @@ def test_run_training_pipeline_csv(tmp_path, synthetic_df, temp_model_dir):
     mlflow.end_run()
     results = run_training_pipeline(cfg, csv_path=str(csv_path))
     assert results["metrics"]["lstm_test"]["mae"] >= 0
+
+
+@patch("src.train.pipeline.should_promote_candidate", return_value=True)
+@patch("src.train.load_yfinance")
+def test_run_training_pipeline_yfinance_end_date_is_exclusive(mock_load_yf, mock_should_promote, synthetic_df, temp_model_dir):
+    import json
+
+    mock_load_yf.return_value = synthetic_df
+    cfg = TrainConfig(
+        symbol="TEST",
+        start_date="2018-01-01",
+        end_date="2026-05-20",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(temp_model_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+    )
+
+    mlflow.end_run()
+    run_training_pipeline(cfg)
+
+    mock_load_yf.assert_called_once_with("TEST", "2018-01-01", "2026-05-21")
+    metadata = json.loads((temp_model_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["end_date_requested"] == "2026-05-20"
+    assert metadata["yfinance_end_date_exclusive"] == "2026-05-21"
+    assert metadata["dataset_start_real"] == "2020-01-01"
+    assert metadata["dataset_end_real"] == "2020-04-09"
+    assert metadata["train_start_date"]
+    assert metadata["train_end_date"]
+    assert metadata["val_start_date"]
+    assert metadata["val_end_date"]
+    assert metadata["test_start_date"]
+    assert metadata["test_end_date"]
+
+
+@patch("src.train.pipeline.should_promote_candidate", return_value=True)
+@patch("src.train.load_yfinance")
+def test_run_training_pipeline_yfinance_end_date_none_stays_none(mock_load_yf, mock_should_promote, synthetic_df, temp_model_dir):
+    import json
+
+    mock_load_yf.return_value = synthetic_df
+    cfg = TrainConfig(
+        symbol="TEST",
+        start_date="2018-01-01",
+        end_date=None,
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(temp_model_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+        parent_run_id="parent-should-not-supply-end-date",
+    )
+
+    mlflow.end_run()
+    run_training_pipeline(cfg)
+
+    mock_load_yf.assert_called_once_with("TEST", "2018-01-01", None)
+    metadata = json.loads((temp_model_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["end_date_requested"] is None
+    assert metadata["yfinance_end_date_exclusive"] is None
+
+
+@patch("src.train.pipeline.should_promote_candidate", return_value=True)
+@patch("src.train.load_yfinance")
+def test_run_training_pipeline_always_uses_selected_feature_dropna(mock_load_yf, mock_should_promote, synthetic_df, temp_model_dir):
+    import json
+
+    mock_load_yf.return_value = synthetic_df
+    real_add_features = src.train.add_features
+    cfg = TrainConfig(
+        symbol="TEST",
+        window_size=5,
+        max_epochs=1,
+        batch_size=4,
+        output_dir=str(temp_model_dir),
+        train_ratio=0.6,
+        val_ratio=0.2,
+        hidden_size=8,
+        num_layers=1,
+        device="cpu",
+    )
+
+    mlflow.end_run()
+    with patch("src.train.add_features", side_effect=real_add_features) as mock_add_features:
+        run_training_pipeline(cfg)
+
+    mock_add_features.assert_called_once()
+    args, kwargs = mock_add_features.call_args
+    assert kwargs == {}
+    assert len(args) == 2
+    assert "Close" in args[1]
+    assert "Log_Return" in args[1]
+
+    metadata = json.loads((temp_model_dir / "metadata.json").read_text(encoding="utf-8"))
+    assert metadata["preprocessing_mode"] == "selected_feature_dropna"
 
 def test_run_training_pipeline_invalid_modes():
     cfg = TrainConfig(target_mode="invalid")

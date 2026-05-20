@@ -1,3 +1,15 @@
+"""
+Orquestrador do Pipeline de Treinamento e Seleção de Modelos.
+
+Este módulo implementa o fluxo completo de MLOps para o StockLSTM:
+1. Coleta de dados (Yahoo Finance ou CSV).
+2. Engenharia de features e split temporal (Train/Val/Test).
+3. Ciclo de treinamento com Early Stopping e monitoramento MLflow.
+4. Avaliação contra Baseline (Naive Persistence).
+5. Promoção Automática baseada no algoritmo Champion vs Challenger.
+6. Exportação de artefatos em múltiplos formatos (PyTorch, Safetensors, ONNX).
+"""
+
 from __future__ import annotations
 
 import os
@@ -30,27 +42,49 @@ from src.train.trainer import regression_metrics, directional_accuracy, predict_
 from src.train.artifacts import write_json, plot_performance
 from dotenv import load_dotenv
 load_dotenv()
-LEGACY_PREPROCESSING_CUTOFF = pd.Timestamp("2026-05-20T00:18:36-03:00")
-LEGACY_PREPROCESSING_REFERENCE_RUN_ID = "52b5dc1f08c844bcb35b7b0a57a944eb"
 
 
 def _empty_date(value: str | None) -> bool:
+    """Verifica se uma string de data está vazia ou é nula."""
     return value is None or str(value).strip().lower() in {"", "none", "null", "nan"}
 
 
-def _dataset_date(value) -> str:
+def _requested_end_date(value: str | None) -> str | None:
+    """Normaliza a data final solicitada pelo usuário."""
+    if _empty_date(value):
+        return None
     return str(pd.Timestamp(value).date())
 
 
-def _run_start_at_or_before(run, cutoff: pd.Timestamp) -> bool:
-    start_time = getattr(run.info, "start_time", None)
-    if start_time is None:
-        return False
-    started_at = pd.Timestamp(start_time, unit="ms", tz="UTC")
-    return started_at <= cutoff.tz_convert("UTC")
+def _yfinance_end_date_exclusive(value: str | None) -> str | None:
+    """Ajusta a data final para exclusividade exigida pela API do yfinance."""
+    requested = _requested_end_date(value)
+    if requested is None:
+        return None
+    return str((pd.Timestamp(requested) + pd.Timedelta(days=1)).date())
+
+
+def _dataset_date(value) -> str:
+    """Converte objeto timestamp para string YYYY-MM-DD."""
+    return str(pd.Timestamp(value).date())
+
+
+def _split_date(values, index: int) -> str:
+    """Extrai data de um índice específico de uma série temporal."""
+    return _dataset_date(values[index])
 
 
 def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict:
+    """
+    Executa o fluxo completo de treinamento.
+    
+    Args:
+        cfg: Objeto de configuração com hiperparâmetros e parâmetros de dados.
+        csv_path: Caminho opcional para arquivo de dados local.
+
+    Returns:
+        Dicionário com métricas finais e diretório de saída dos artefatos.
+    """
     set_seed(cfg.seed)
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -58,6 +92,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
     if csv_path is None:
         csv_path = os.getenv("DATA_CSV_PATH") or None
 
+    # Configura rastreamento do MLflow
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
     if "://" not in mlflow_uri:
         mlflow_path = Path(mlflow_uri)
@@ -69,37 +104,24 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
     mlflow.set_experiment("stock_lstm_hypersearch")
     
     with mlflow.start_run(run_name=f"{cfg.symbol}_{cfg.feature_mode}_{cfg.target_mode}", nested=True) as run:
-        parent_run = None
-        use_legacy_preprocessing = False
-
         if cfg.parent_run_id:
             mlflow.set_tag("mlflow.parentRunId", cfg.parent_run_id)
             mlflow.set_tag("derived_from", cfg.parent_run_id)
 
-            try:
-                parent_run = mlflow.tracking.MlflowClient().get_run(cfg.parent_run_id)
-                use_legacy_preprocessing = _run_start_at_or_before(parent_run, LEGACY_PREPROCESSING_CUTOFF)
-                parent_params = parent_run.data.params or {}
-
-                if _empty_date(cfg.end_date):
-                    parent_end_date = parent_params.get("dataset_end_real") or parent_params.get("end_date")
-                    if not _empty_date(parent_end_date):
-                        cfg.end_date = parent_end_date
-                        mlflow.log_param("resolved_end_date_from_parent", cfg.end_date)
-            except Exception as e:
-                print(f"[Dataset] Nao foi possivel carregar metadados do run pai: {e}")
-
         mlflow.log_params(asdict(cfg))
-        preprocessing_mode = "legacy_global_dropna" if use_legacy_preprocessing else "selected_feature_dropna"
+        end_date_requested = _requested_end_date(cfg.end_date)
+        yfinance_end_date_exclusive = _yfinance_end_date_exclusive(cfg.end_date)
+        preprocessing_mode = "selected_feature_dropna"
         mlflow.log_params(
             {
                 "preprocessing_mode": preprocessing_mode,
-                "preprocessing_legacy_cutoff": str(LEGACY_PREPROCESSING_CUTOFF),
-                "preprocessing_reference_run_id": LEGACY_PREPROCESSING_REFERENCE_RUN_ID,
+                "end_date_requested": end_date_requested,
+                "yfinance_end_date_exclusive": yfinance_end_date_exclusive,
             }
         )
 
-        df_raw = src.train.load_csv(csv_path) if csv_path else src.train.load_yfinance(cfg.symbol, cfg.start_date, cfg.end_date)
+        # 1. Carregamento de dados
+        df_raw = src.train.load_csv(csv_path) if csv_path else src.train.load_yfinance(cfg.symbol, cfg.start_date, yfinance_end_date_exclusive)
         data_source = str(csv_path) if csv_path else "yfinance"
         mlflow.log_param("data_source", data_source)
         dataset_start_real = _dataset_date(df_raw.index.min())
@@ -112,27 +134,22 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             }
         )
 
+        # 2. Resolução de features e target
         target_col = resolve_target_column(cfg.target_mode)
         feature_cols = resolve_feature_columns(cfg, target_col)
 
         # Close é sempre necessário para reconstruir preço e baseline.
         required_cols = list(set(feature_cols + [target_col, "Close"]))
-        if use_legacy_preprocessing:
-            # Compatibilidade com runs antigas treinadas antes do logging de dataset real.
-            # O run de referencia 52b5dc1f (58.9% direcional) usava add_features()
-            # sem required_features, calculando todos os indicadores e aplicando dropna global.
-            df_feat = src.train.add_features(df_raw)
-        else:
-            df_feat = src.train.add_features(df_raw, required_cols)
+        df_feat = src.train.add_features(df_raw, required_cols)
         
         missing_required = [f for f in required_cols if f not in df_feat.columns]
         if missing_required:
             raise ValueError(f"Colunas obrigatorias ausentes no DataFrame gerado: {missing_required}")
 
         mlflow.log_param("dataset_rows_feat", len(df_feat))
-
         mlflow.log_param("feature_cols", ",".join(feature_cols))
 
+        # 3. Engenharia de sequências e Janelamento (Lookback)
         n_rows = len(df_feat)
         train_end = int(n_rows * cfg.train_ratio)
         val_end = int(n_rows * (cfg.train_ratio + cfg.val_ratio))
@@ -147,6 +164,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             target_scaler_type=cfg.target_scaler_type
         )
 
+        # Split temporal (sem shuffle entre os conjuntos)
         train_mask = rows_all < train_end
         val_mask = (rows_all >= train_end) & (rows_all < val_end)
         test_mask = rows_all >= val_end
@@ -160,9 +178,21 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         last_close_test = last_close_all[test_mask]
 
         dates_test = dates_all[test_mask]
+        dates_train = dates_all[train_mask]
+        dates_val = dates_all[val_mask]
 
         if len(X_train) == 0 or len(X_val) == 0 or len(X_test) == 0:
             raise ValueError("Split gerou conjunto vazio. Aumente o historico ou reduza window_size.")
+
+        split_date_params = {
+            "train_start_date": _split_date(dates_train, 0),
+            "train_end_date": _split_date(dates_train, -1),
+            "val_start_date": _split_date(dates_val, 0),
+            "val_end_date": _split_date(dates_val, -1),
+            "test_start_date": _split_date(dates_test, 0),
+            "test_end_date": _split_date(dates_test, -1),
+        }
+        mlflow.log_params(split_date_params)
 
         print(f"Dataset Dinamico: {cfg.feature_mode} | target: {cfg.target_mode}")
         print(f"- fonte: {data_source}")
@@ -181,6 +211,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             }
         )
 
+        # 4. Inicialização do Modelo e Otimizadores
         if cfg.device == "auto":
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
@@ -205,6 +236,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         patience_count = 0
         history = {"train_loss": [], "val_loss": []}
 
+        # 5. Ciclo de Épocas (Treinamento e Validação)
         for epoch in range(1, cfg.max_epochs + 1):
             model.train()
             train_losses = []
@@ -239,6 +271,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
                 lr = optimizer.param_groups[0]["lr"]
                 print(f"Epoch {epoch:03d} | train={train_loss:.8f} | val={val_loss:.8f} | lr={lr:.6g}")
 
+            # Early Stopping
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_state = copy.deepcopy(model.state_dict())
@@ -249,9 +282,10 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
                     print(f"Early stopping na epoca {epoch}.")
                     break
 
+        # Recupera o melhor estado encontrado (ponto de menor loss de validação)
         model.load_state_dict(best_state)
         
-        # Avaliacao
+        # 6. Avaliação Final (Conjunto de Teste)
         pred_train_scaled = predict_numpy(model, X_train, device)
         pred_val_scaled = predict_numpy(model, X_val, device)
         pred_test_scaled = predict_numpy(model, X_test, device)
@@ -265,6 +299,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         y_test_raw = target_scaler.inverse_transform(y_test).reshape(-1)
         pred_test_raw = target_scaler.inverse_transform(pred_test_scaled.reshape(-1, 1)).reshape(-1)
 
+        # Conversão de retornos para preços absolutos para cálculo de métricas de negócio
         if cfg.target_mode == "log_returns":
             true_train_close = last_close_train * np.exp(y_train_raw)
             pred_train_close = last_close_train * np.exp(pred_train_raw)
@@ -293,6 +328,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             true_test_close = y_test_raw
             pred_test_close = pred_test_raw
 
+        # Baseline Naive (Previsão de hoje = preço de ontem)
         baseline_test_close = last_close_test
 
         metrics_train = regression_metrics(true_train_close, pred_train_close)
@@ -339,7 +375,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             }
         )
 
-        # MLOps: Champion/Challenger Promotion Evaluation
+        # 7. Avaliação Champion/Challenger (MLOps)
         champion_metadata_path = output_dir / "metadata.json"
         champion_metrics_path = output_dir / "metrics.json"
         champion_record = None
@@ -384,10 +420,11 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         else:
             save_dir = output_dir
 
-        # Exportando pesos PyTorch (Legado/Compatibilidade)
+        # 8. Exportação de Artefatos
+        # Pesos PyTorch
         torch.save(model.state_dict(), save_dir / "model.pt")
 
-        # Exportando pesos de forma segura usando Safetensors
+        # Safetensors (Formato seguro contra RCE)
         try:
             from safetensors.torch import save_file
             save_file(model.state_dict(), save_dir / "model.safetensors")
@@ -395,7 +432,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         except Exception as e:
             print(f"Aviso: Nao foi possivel salvar os pesos em formato safetensors: {e}")
 
-        # MLOps: Compilacao para formato estatico ONNX
+        # Compilacao para formato estático ONNX (Aceleração em Inferência)
         dummy_input = torch.randn(1, cfg.window_size, X_train.shape[2]).to(device)
         model.eval()
         batch_dim = torch.export.Dim("batch_size", min=1, max=2048)
@@ -417,6 +454,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
 
         resolved_selected_features = feature_cols if cfg.feature_mode in {"technical_features", "custom"} else None
 
+        # Salva preprocessador (Normalizadores e Metadados de Janela)
         preprocess = {
             "feature_scaler": feature_scaler,
             "target_scaler": target_scaler,
@@ -434,10 +472,17 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         }
         joblib.dump(preprocess, save_dir / "preprocessor.joblib")
 
+        # Salva metadados de linhagem e governança
         metadata = {
             "run_id": run.info.run_id,
             "symbol": cfg.symbol,
             "data_source": data_source,
+            "preprocessing_mode": preprocessing_mode,
+            "end_date_requested": end_date_requested,
+            "yfinance_end_date_exclusive": yfinance_end_date_exclusive,
+            "dataset_start_real": dataset_start_real,
+            "dataset_end_real": dataset_end_real,
+            **split_date_params,
             "window_size": cfg.window_size,
             "prediction_horizon": "next_trading_day",
             "target_mode": cfg.target_mode,
@@ -459,6 +504,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         write_json(save_dir / "metrics.json", metrics)
         write_json(save_dir / "history.json", history)
 
+        # 9. Log de predições do conjunto de teste para auditoria
         predictions = pd.DataFrame(
             {
                 "target_date": pd.to_datetime(dates_test),
@@ -472,12 +518,14 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         )
         predictions.to_csv(save_dir / "test_predictions.csv", index=False)
         
+        # Gera gráfico de performance
         plot_performance(
             save_dir, df_feat, train_end, val_end, dates_test, 
             true_test_close, pred_test_close, metrics, cfg.symbol, 
             cfg.feature_mode, cfg.target_mode
         )
         
+        # Envia todos os artefatos locais para o MLflow
         mlflow.log_artifacts(str(save_dir))
         
         if not is_better:

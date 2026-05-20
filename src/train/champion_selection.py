@@ -1,3 +1,13 @@
+"""
+Lógica de Seleção de Modelo Campeão (Champion vs Challenger).
+
+Este módulo define os critérios para promover um novo modelo à produção:
+1. Requisito Mínimo: O modelo deve superar o baseline (Naive Persistence) em MAPE.
+2. Critério Principal: Maior ganho relativo de MAPE em relação ao baseline.
+3. Empate Técnico: Diferenças de ganho menores que 0.3 p.p. são consideradas empate.
+4. Desempate: Maior acurácia direcional > Menor MAPE > Menos linhas de inferência > Menor janela.
+"""
+
 from __future__ import annotations
 
 from typing import Any

@@ -1,5 +1,11 @@
 """
-Carregamento e preparacao da serie de fechamento.
+Módulo de Carregamento e Engenharia de Features para Dados Financeiros.
+
+Este módulo é responsável por:
+1. Normalizar nomes de colunas vindas de diferentes fontes (CSV, yfinance).
+2. Garantir o tratamento correto de índices temporais.
+3. Calcular indicadores técnicos (RSI, MACD, Volatilidade, etc.) para o modelo multivariado.
+4. Realizar a limpeza e filtragem de dados ausentes.
 """
 
 from __future__ import annotations
@@ -10,6 +16,10 @@ import pandas as pd
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Padroniza os nomes das colunas para Capital Case (Open, High, Low, Close, Volume).
+    Lida com MultiIndex e diferentes variações de nomes comuns.
+    """
     df = df.copy()
     if isinstance(df.columns, pd.MultiIndex):
         level0 = list(df.columns.get_level_values(0))
@@ -33,6 +43,9 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def ensure_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Garante que o DataFrame tenha um índice do tipo DatetimeIndex ordenado cronologicamente.
+    """
     df = df.copy()
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -45,6 +58,7 @@ def ensure_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_csv(path: str | Path) -> pd.DataFrame:
+    """Carrega dados históricos de um arquivo CSV e aplica normalização."""
     df = ensure_datetime_index(normalize_columns(pd.read_csv(path)))
     # Capitalize the columns after normalize_columns just in case
     df.columns = [col.capitalize() for col in df.columns]
@@ -52,6 +66,7 @@ def load_csv(path: str | Path) -> pd.DataFrame:
 
 
 def load_yfinance(symbol: str, start_date: str, end_date: str | None = None) -> pd.DataFrame:
+    """Download de dados históricos via API do Yahoo Finance."""
     import yfinance as yf
 
     df = yf.download(
@@ -90,8 +105,8 @@ def add_features(df: pd.DataFrame, required_features: list[str] | None = None) -
         if req_set is None:
             raise ValueError(f"Colunas obrigatorias ausentes: {missing}")
         else:
-            # Se mode for single e as colunas OHLCV não estiverem todas presentes, não quebra
-            # a menos que uma das features requeridas dependa dessas colunas
+            # Se as features requeridas não dependerem de todas as colunas OHLCV,
+            # a validação final do pipeline decide se faltou algo obrigatório.
             pass
     else:
         for col in required:

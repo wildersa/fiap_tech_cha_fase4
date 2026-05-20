@@ -12,31 +12,37 @@ import asyncio
 import os
 from playwright.async_api import async_playwright
 
+
+PORTAL_URL = os.getenv("PORTAL_URL", "http://127.0.0.1:8000/dashboard")
+VIEWPORT = {"width": 1440, "height": 900}
+TABS = {
+    "home": {"button": "#tab-home", "ready": "#mc-status"},
+    "inference": {"button": "#tab-inference", "ready": "#payload"},
+    "train": {"button": "#tab-train", "ready": "#runs-table-body"},
+    "telemetry": {"button": "#tab-telemetry", "ready": "#resourceChart"},
+}
+
+
 async def main():
     assets_dir = os.path.abspath("assets")
     os.makedirs(assets_dir, exist_ok=True)
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        # Create context with a nice viewport size
-        context = await browser.new_context(viewport={"width": 1280, "height": 800})
+        context = await browser.new_context(viewport=VIEWPORT)
         page = await context.new_page()
         
-        print("Acessando o Dashboard...")
-        await page.goto("http://127.0.0.1:8000/dashboard")
-        await page.wait_for_timeout(2000) # wait for data load
-        
-        tabs = {
-            "home": "#tab-home",
-            "inference": "#tab-inference",
-            "train": "#tab-train",
-            "telemetry": "#tab-telemetry"
-        }
-        
-        for tab_name, selector in tabs.items():
-            print(f"Clicando na aba {tab_name} ({selector})...")
-            await page.click(selector)
-            await page.wait_for_timeout(1000) # wait for animations/rendering
+        print(f"Acessando o Dashboard em {PORTAL_URL}...")
+        await page.goto(PORTAL_URL, wait_until="domcontentloaded")
+        await page.wait_for_selector("#tab-home")
+        await page.wait_for_timeout(1000)
+
+        for tab_name, tab in TABS.items():
+            print(f"Clicando na aba {tab_name} ({tab['button']})...")
+            await page.click(tab["button"])
+            await page.wait_for_selector(tab["ready"])
+            await page.wait_for_timeout(1200)
+            await page.evaluate("window.scrollTo(0, 0)")
             
             screenshot_path = os.path.join(assets_dir, f"{tab_name}.png")
             await page.screenshot(path=screenshot_path)
