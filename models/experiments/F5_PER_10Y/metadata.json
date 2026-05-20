@@ -1,0 +1,23 @@
+{
+  "symbol": "PETR4.SA",
+  "data_source": "yfinance",
+  "window_size": 60,
+  "prediction_horizon": "next_trading_day",
+  "target_mode": "log_returns",
+  "feature_mode": "ohlcv_returns",
+  "train_shape": [
+    1659,
+    60,
+    6
+  ],
+  "val_shape": [
+    369,
+    60,
+    6
+  ],
+  "test_shape": [
+    369,
+    60,
+    6
+  ]
+}

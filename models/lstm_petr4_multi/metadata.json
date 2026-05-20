@@ -1,0 +1,50 @@
+{
+  "run_id": "856f91f1325b470c8478026248d9eeb2",
+  "symbol": "PETR4.SA",
+  "data_source": "yfinance",
+  "window_size": 20,
+  "prediction_horizon": "next_trading_day",
+  "target_mode": "log_returns",
+  "feature_mode": "custom",
+  "feature_scaler_type": "robust",
+  "target_scaler_type": "robust",
+  "train_shape": [
+    1423,
+    20,
+    8
+  ],
+  "val_shape": [
+    309,
+    20,
+    8
+  ],
+  "test_shape": [
+    310,
+    20,
+    8
+  ],
+  "selected_features": [
+    "Return",
+    "Log_Return",
+    "Log_Return_Lag1",
+    "Log_Return_Lag2",
+    "Log_Return_Lag3",
+    "Log_Return_Lag5",
+    "Rolling_Return_5",
+    "Rolling_Return_20"
+  ],
+  "feature_cols": [
+    "Return",
+    "Log_Return",
+    "Log_Return_Lag1",
+    "Log_Return_Lag2",
+    "Log_Return_Lag3",
+    "Log_Return_Lag5",
+    "Rolling_Return_5",
+    "Rolling_Return_20"
+  ],
+  "feature_preset": "custom",
+  "feature_schema_version": "v1",
+  "feature_registry_version": "2026-05-19",
+  "feature_count": 8
+}

@@ -92,6 +92,8 @@ APP_METRICS = {
     "total_inference_time_sec": 0.0,
     "inference_requests": 0,
     "last_inference_time_sec": 0.0,
+    "last_predict_latency_sec": None,
+    "last_predict_multi_latency_sec": None,
 }
 TELEMETRY_HISTORY = deque(maxlen=100)
 
@@ -911,6 +913,8 @@ async def collect_app_metrics(request, call_next):
         snapshot = {
             "timestamp": time.strftime("%H:%M:%S"),
             "latency_ms": round(APP_METRICS["last_inference_time_sec"] * 1000, 2),
+            "predict_latency_ms": round(APP_METRICS["last_predict_latency_sec"] * 1000, 2) if APP_METRICS["last_predict_latency_sec"] is not None else None,
+            "predict_multi_latency_ms": round(APP_METRICS["last_predict_multi_latency_sec"] * 1000, 2) if APP_METRICS["last_predict_multi_latency_sec"] is not None else None,
             "cpu_percent": cpu,
             "memory_mb": mem_mb
         }
@@ -1143,7 +1147,8 @@ def telemetry():
     summary="Histórico de Treinamentos no MLflow",
     description="Consulta o servidor MLflow local/remoto e lista o histórico de runs do experimento 'stock_lstm_hypersearch', incluindo parâmetros, métricas de validação, status da execução, tags e linhagem de derivação.",
     response_description="Histórico cronológico das runs rastreadas no MLflow.",
-    tags=["Treinamento & MLOps"]
+    tags=["Treinamento & MLOps"],
+    include_in_schema=ENABLE_TRAINING_API,
 )
 def get_runs(limit: int = 100):
     if not ENABLE_TRAINING_API:
@@ -1179,7 +1184,8 @@ def get_runs(limit: int = 100):
     summary="Deletar uma Run do MLflow",
     description="Remove/deleta logicamente uma execução específica do MLflow pelo seu run_id.",
     response_description="Status de sucesso da remoção.",
-    tags=["Treinamento & MLOps"]
+    tags=["Treinamento & MLOps"],
+    include_in_schema=ENABLE_TRAINING_API,
 )
 def delete_run(run_id: str):
     if not ENABLE_TRAINING_API:
@@ -1197,7 +1203,8 @@ def delete_run(run_id: str):
     summary="Iniciar Pipeline de Treinamento",
     description="Dispara de forma síncrona o pipeline completo de treinamento. A promoção automática segue a regra Champion/Challenger baseada em ganho vs baseline de MAPE.",
     response_description="Status de sucesso do treinamento, métricas finais obtidas e pasta de saída.",
-    tags=["Treinamento & MLOps"]
+    tags=["Treinamento & MLOps"],
+    include_in_schema=ENABLE_TRAINING_API,
 )
 def train_model(req: TrainRequest):
     """
@@ -1247,6 +1254,7 @@ def predict(request: PredictRequest):
         result = predict_next(request.closes)
         inference_time = time.time() - t0
         APP_METRICS["last_inference_time_sec"] = inference_time
+        APP_METRICS["last_predict_latency_sec"] = inference_time
         APP_METRICS["total_inference_time_sec"] += inference_time
         APP_METRICS["inference_requests"] += 1
     except Exception as exc:
@@ -1288,6 +1296,7 @@ def predict_ohlcv(request: PredictOhlcvRequest):
         result = predict_next_ohlcv(rows_dict)
         inference_time = time.time() - t0
         APP_METRICS["last_inference_time_sec"] = inference_time
+        APP_METRICS["last_predict_multi_latency_sec"] = inference_time
         APP_METRICS["total_inference_time_sec"] += inference_time
         APP_METRICS["inference_requests"] += 1
     except Exception as exc:

@@ -1,0 +1,34 @@
+{
+  "run_id": "59e5078802a3486e8d2a2edf34cdf2f8",
+  "symbol": "PETR4.SA",
+  "data_source": "yfinance",
+  "window_size": 20,
+  "prediction_horizon": "next_trading_day",
+  "target_mode": "log_returns",
+  "feature_mode": "single",
+  "feature_scaler_type": "robust",
+  "target_scaler_type": "standard",
+  "train_shape": [
+    1421,
+    20,
+    1
+  ],
+  "val_shape": [
+    309,
+    20,
+    1
+  ],
+  "test_shape": [
+    309,
+    20,
+    1
+  ],
+  "selected_features": null,
+  "feature_cols": [
+    "Log_Return"
+  ],
+  "feature_preset": null,
+  "feature_schema_version": "v1",
+  "feature_registry_version": "2026-05-19",
+  "feature_count": 1
+}

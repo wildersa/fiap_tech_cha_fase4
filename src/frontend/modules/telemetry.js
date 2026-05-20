@@ -32,7 +32,8 @@ export async function loadTelemetry() {
     const labels = history.map(h => h.timestamp);
     const cpuData = history.map(h => h.cpu_percent);
     const memData = history.map(h => h.memory_mb);
-    const latData = history.map(h => h.latency_ms);
+    const predictLatencyData = history.map(h => h.predict_latency_ms ?? null);
+    const predictMultiLatencyData = history.map(h => h.predict_multi_latency_ms ?? null);
 
     if (state.resourceChart) state.resourceChart.destroy();
     state.resourceChart = new Chart(document.getElementById('resourceChart'), {
@@ -95,7 +96,28 @@ export async function loadTelemetry() {
       data: {
         labels,
         datasets: [
-          { label: 'Latência (ms)', data: latData, borderColor: '#a78bfa', backgroundColor: 'rgba(167, 139, 250, 0.1)', fill: true, tension: 0.2, pointRadius: 1, borderWidth: 2 }
+          {
+            label: 'Predict Uni (ms)',
+            data: predictLatencyData,
+            borderColor: '#a78bfa',
+            backgroundColor: 'rgba(167, 139, 250, 0.10)',
+            fill: true,
+            tension: 0.2,
+            pointRadius: 1,
+            borderWidth: 2,
+            spanGaps: true
+          },
+          {
+            label: 'Predict Multi (ms)',
+            data: predictMultiLatencyData,
+            borderColor: '#22d3ee',
+            backgroundColor: 'rgba(34, 211, 238, 0.08)',
+            fill: false,
+            tension: 0.2,
+            pointRadius: 1,
+            borderWidth: 2,
+            spanGaps: true
+          }
         ]
       },
       options: {
