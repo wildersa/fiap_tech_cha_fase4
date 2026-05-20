@@ -18,14 +18,18 @@ import torch.nn as nn
 import src.train
 from src.model import StockLSTM
 from src.train.config import TrainConfig, resolve_target_column, resolve_feature_columns
-from src.train.champion_selection import MIN_BASELINE_GAIN, build_selection_record, should_promote_candidate
+from src.train.champion_selection import (
+    MIN_BASELINE_GAIN,
+    build_selection_record,
+    should_promote_candidate,
+    is_auto_promotion_eligible,
+    AUTO_PROMOTION_FEATURE_MODES,
+)
 from src.train.data_prep import set_seed, create_windowed_sequences, make_loader
 from src.train.trainer import regression_metrics, directional_accuracy, predict_numpy
 from src.train.artifacts import write_json, plot_performance
 from dotenv import load_dotenv
 load_dotenv()
-
-AUTO_PROMOTION_FEATURE_MODES = {"single", "technical_features"}
 LEGACY_PREPROCESSING_CUTOFF = pd.Timestamp("2026-05-20T00:18:36-03:00")
 LEGACY_PREPROCESSING_REFERENCE_RUN_ID = "52b5dc1f08c844bcb35b7b0a57a944eb"
 
@@ -351,7 +355,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
 
         is_better = True
 
-        if cfg.feature_mode not in AUTO_PROMOTION_FEATURE_MODES:
+        if not is_auto_promotion_eligible(cfg.feature_mode):
             eligible_modes = ", ".join(sorted(AUTO_PROMOTION_FEATURE_MODES))
             print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos com feature_mode em {{{eligible_modes}}} sao elegiveis para promocao automatica na producao.")
             is_better = False

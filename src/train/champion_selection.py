@@ -5,6 +5,12 @@ from typing import Any
 
 MIN_BASELINE_GAIN = 0.0
 GAIN_TIE_MARGIN = 0.3
+EPSILON = 1e-9
+AUTO_PROMOTION_FEATURE_MODES = {"single", "technical_features", "custom"}
+
+
+def is_auto_promotion_eligible(feature_mode: str | None) -> bool:
+    return feature_mode in AUTO_PROMOTION_FEATURE_MODES
 
 
 def _coerce_float(value: Any, default: float | None = None) -> float | None:
@@ -127,11 +133,22 @@ def build_selection_record(metrics: dict | None, params: dict | None = None, run
 
 
 def _selection_sort_key(record: dict) -> tuple:
+    gain = _coerce_float(record.get("baseline_gain_pct"), float("-inf"))
     directional = _coerce_float(record.get("directional_accuracy"), float("-inf"))
     mape_lstm = _coerce_float(record.get("mape_lstm", record.get("mape")), float("inf"))
     required_rows = _coerce_float(record.get("inference_required_rows"), float("inf"))
     current_window_size = _coerce_float(record.get("window_size"), float("inf"))
-    return (-directional, mape_lstm, required_rows, current_window_size)
+    return (-directional, mape_lstm, required_rows, current_window_size, -gain)
+
+
+def _is_baseline_beating_record(record: dict) -> bool:
+    gain = _coerce_float(record.get("baseline_gain_pct"))
+    mape_lstm = _coerce_float(record.get("mape_lstm", record.get("mape")))
+    mape_baseline = _coerce_float(record.get("mape_baseline"))
+
+    if mape_lstm is not None and mape_baseline is not None:
+        return mape_lstm < mape_baseline and gain is not None and gain > MIN_BASELINE_GAIN
+    return gain is not None and gain > MIN_BASELINE_GAIN
 
 
 def select_best_record(records: list[dict] | None) -> dict | None:
@@ -139,14 +156,18 @@ def select_best_record(records: list[dict] | None) -> dict | None:
     eligible = []
     for record in valid_records:
         gain = _coerce_float(record.get("baseline_gain_pct"))
-        if gain is not None and gain > MIN_BASELINE_GAIN:
+        if gain is not None and _is_baseline_beating_record(record):
             eligible.append((record, gain))
 
     if not eligible:
         return None
 
     max_gain = max(gain for _, gain in eligible)
-    contenders = [record for record, gain in eligible if gain >= max_gain - GAIN_TIE_MARGIN]
+    contenders = [
+        record
+        for record, gain in eligible
+        if (max_gain - gain) <= GAIN_TIE_MARGIN + EPSILON
+    ]
     if not contenders:
         return None
     return sorted(contenders, key=_selection_sort_key)[0]

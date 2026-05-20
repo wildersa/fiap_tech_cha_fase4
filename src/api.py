@@ -37,10 +37,15 @@ from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Gauge, Counter, REGISTRY
 from pydantic import BaseModel, Field
-from src.train.champion_selection import build_selection_record as build_champion_selection_record, select_best_record as select_champion_record
+from src.train.champion_selection import (
+    build_selection_record as build_champion_selection_record,
+    select_best_record as select_champion_record,
+    is_auto_promotion_eligible,
+)
 
 # Métricas oficiais do Prometheus para monitoramento de recursos e performance
 PROM_CPU_USAGE = Gauge('api_cpu_usage_percent', 'Uso de CPU do processo em porcentagem')
@@ -64,6 +69,8 @@ MODEL_DIR = Path(os.getenv("MODEL_DIR", "models/lstm_petr4"))
 MODEL_DIR_MULTI = Path(os.getenv("MODEL_DIR_MULTI", "models/lstm_petr4_multi"))
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_TEMPLATE = BASE_DIR / "dashboard.html"
+FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_INDEX = FRONTEND_DIR / "index.html"
 MODEL_ARTIFACT_FILES = [
     "model.onnx",
     "model.onnx.data",
@@ -273,6 +280,8 @@ app = FastAPI(
     description="API para prever o proximo fechamento a partir de fechamentos historicos.",
     version="1.0.0",
 )
+if FRONTEND_DIR.exists():
+    app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
@@ -386,6 +395,62 @@ def _select_best_run(records: list[dict]) -> dict | None:
     return select_champion_record(records)
 
 
+def _model_dir_selection_record(model_type: str, model_dir: Path) -> dict | None:
+    metrics = normalize_model_metrics(_read_json_file(model_dir / "metrics.json"))
+    metadata = _read_json_file(model_dir / "metadata.json")
+    record = build_champion_selection_record(metrics, metadata, None)
+    if record is None:
+        return None
+    record["model_type"] = model_type
+    record["model_dir"] = str(model_dir)
+    record["run_id"] = metadata.get("run_id")
+    record["feature_mode"] = metadata.get("feature_mode")
+    record["target_mode"] = metadata.get("target_mode")
+    return record
+
+
+def _current_champion_record() -> dict | None:
+    return select_champion_record([
+        _model_dir_selection_record("single", MODEL_DIR),
+        _model_dir_selection_record("multi", MODEL_DIR_MULTI),
+    ])
+
+
+def _selection_payload(record: dict | None) -> dict:
+    if record is None:
+        return {
+            "selected_model_type": "single",
+            "has_champion": False,
+            "reason": "Nenhum modelo elegivel superou o baseline em MAPE.",
+        }
+
+    return {
+        "selected_model_type": record.get("model_type", "single"),
+        "has_champion": True,
+        "run_id": record.get("run_id"),
+        "model_dir": record.get("model_dir"),
+        "feature_mode": record.get("feature_mode"),
+        "target_mode": record.get("target_mode"),
+        "mape_lstm": record.get("mape_lstm"),
+        "mape_baseline": record.get("mape_baseline"),
+        "baseline_gain_pct": record.get("baseline_gain_pct"),
+        "directional_accuracy": record.get("directional_accuracy"),
+        "inference_required_rows": record.get("inference_required_rows"),
+        "window_size": record.get("window_size"),
+        "selection_rule": {
+            "baseline_required": "lstm_mape < baseline_mape",
+            "primary": "maior ganho de MAPE vs baseline",
+            "technical_tie_pp": 0.3,
+            "tiebreakers": [
+                "maior acuracia direcional",
+                "menor MAPE",
+                "menos linhas necessarias para inferencia",
+                "menor window_size",
+            ],
+        },
+    }
+
+
 def _section_from_flat(metrics: dict, prefix: str) -> dict:
     return {
         "mae": _flat_metric(metrics, f"{prefix}_mae"),
@@ -487,7 +552,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
                 if getattr(r.info, "status", None) != "FINISHED":
                     continue
                 feature_mode = r.data.params.get("feature_mode")
-                if not feature_mode:
+                if not feature_mode or not is_auto_promotion_eligible(feature_mode):
                     continue
                 record = _run_selection_record(r)
                 if record is None:
@@ -1018,7 +1083,7 @@ def home():
 @app.get(
     "/model-card",
     summary="Ficha Técnica do Modelo",
-    description="Retorna a ficha técnica detalhada do modelo em formato JSON com visão geral, parâmetros de treino, métricas de validação/teste e limites de responsabilidade. Suporta os tipos 'single' ou 'multi'.",
+    description="Retorna a ficha técnica detalhada do modelo em formato JSON com visão geral, parâmetros de treino, métricas de validação/teste e limites de responsabilidade. Suporta os tipos 'single', 'multi' ou 'best'.",
     response_description="Payload de ficha técnica contendo governança, parâmetros de treino, métricas de validação e limites de responsabilidade.",
     tags=["Monitoramento & Diagnóstico"]
 )
@@ -1026,10 +1091,25 @@ def model_card(type: str = "single"):
     # Em dev/train, garante sincronizacao do melhor run antes de responder.
     # Em inferencia pura, usa apenas os artefatos apontados/empacotados.
     refresh_models_for_runtime(force_best=True)
-    
+    if type == "best":
+        champion = _current_champion_record()
+        type = champion.get("model_type", "single") if champion else "single"
+
     if type == "multi":
         return model_card_payload(MODEL_DIR_MULTI)
     return model_card_payload(MODEL_DIR)
+
+
+@app.get(
+    "/model-champion",
+    summary="Modelo Campeão Atual",
+    description="Aplica a regra oficial de seleção Champion vs Baseline e informa qual tipo de modelo deve alimentar o card e a inferência.",
+    response_description="Resumo do campeão global entre modelos univariado e multivariado.",
+    tags=["Monitoramento & Diagnóstico"]
+)
+def model_champion():
+    refresh_models_for_runtime(force_best=True)
+    return _selection_payload(_current_champion_record())
 
 
 @app.get(
@@ -1129,6 +1209,7 @@ def train_model(req: TrainRequest):
         results = run_training_pipeline(cfg)
         training_time = time.time() - t0
         APP_METRICS["last_training_time_sec"] = training_time
+        refresh_models_for_runtime(force_best=True)
         
         # Limpa o cache da API para carregar o novo modelo automaticamente se ele foi promovido
         load_predictor.cache_clear()
@@ -1218,22 +1299,14 @@ def predict_ohlcv(request: PredictOhlcvRequest):
     APP_METRICS["last_prediction"] = response
     return response
 
-@app.get(
-    "/dashboard",
-    summary="Dashboard Visual Web",
-    description="Renderiza e retorna a interface gráfica HTML interativa (Single Page Application) com controle de treinamento, histórico de runs do MLflow, governança via SageMaker Model Card, telemetria do sistema e simulador visual de payloads de inferência.",
-    response_description="Interface gráfica completa do portal em HTML/CSS/JS.",
-    tags=["Visualização"],
-    response_class=HTMLResponse
-)
-def dashboard():
+def render_frontend_dashboard() -> HTMLResponse:
     sample_closes = []
     for i in range(65):
         base = 43.0 + i * 0.035 + np.sin(i / 4) * 0.45
         sample_closes.append(round(base + np.sin(i / 3) * 0.18, 2))
     sample = {"symbol": "PETR4.SA", "closes": sample_closes}
     sample_text = json.dumps(sample, indent=2, ensure_ascii=False)
-    html = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
+    html = FRONTEND_INDEX.read_text(encoding="utf-8")
     html = html.replace("__SAMPLE_PAYLOAD__", sample_text)
     html = html.replace("__MODEL_DIR__", str(MODEL_DIR))
     html = html.replace("__MODEL_DIR_MULTI__", str(MODEL_DIR_MULTI))
@@ -1241,3 +1314,27 @@ def dashboard():
     html = html.replace("__MODEL_SOURCE_POLICY__", model_source_policy())
     html = html.replace("__ENABLE_TRAINING_API__", "true" if ENABLE_TRAINING_API else "false")
     return HTMLResponse(html)
+
+
+@app.get(
+    "/dashboard",
+    summary="Dashboard Visual Web",
+    description="Renderiza a interface gráfica modular em src/frontend.",
+    response_description="Interface gráfica completa do portal com HTML, CSS e JS separados.",
+    tags=["Visualização"],
+    response_class=HTMLResponse
+)
+def dashboard():
+    return render_frontend_dashboard()
+
+
+@app.get(
+    "/dashboard-modular",
+    summary="Dashboard Visual Web Modular",
+    description="Alias da interface gráfica modular em src/frontend.",
+    response_description="Interface gráfica completa do portal com HTML, CSS e JS separados.",
+    tags=["Visualização"],
+    response_class=HTMLResponse
+)
+def dashboard_modular():
+    return render_frontend_dashboard()

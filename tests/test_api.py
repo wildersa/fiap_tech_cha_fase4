@@ -95,6 +95,49 @@ def test_best_run_selection_uses_tie_margin_and_tiebreakers():
     assert best["run"].info.run_id == "tie_payload"
 
 
+def test_best_run_selection_respects_gain_band_before_tiebreakers():
+    outside_gain_band_better_direction = _run_selection_record(_mock_finished_run(
+        "outside_band",
+        {"test_lstm_mape_pct": 1.10, "baseline_gain_pct": 1.69, "directional_accuracy_pct": 99.0},
+        {"window_size": "20", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+    max_gain_worse_direction = _run_selection_record(_mock_finished_run(
+        "max_gain",
+        {"test_lstm_mape_pct": 1.30, "baseline_gain_pct": 2.0, "directional_accuracy_pct": 50.0},
+        {"window_size": "20", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+
+    best = _select_best_run([outside_gain_band_better_direction, max_gain_worse_direction])
+
+    assert best["run"].info.run_id == "max_gain"
+
+
+def test_best_run_selection_treats_exact_margin_as_technical_tie():
+    max_gain_worse_direction = _run_selection_record(_mock_finished_run(
+        "max_gain",
+        {"test_lstm_mape_pct": 1.30, "baseline_gain_pct": 1.8, "directional_accuracy_pct": 50.0},
+        {"window_size": "20", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+    exact_margin_better_direction = _run_selection_record(_mock_finished_run(
+        "exact_margin",
+        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 1.5, "directional_accuracy_pct": 60.0},
+        {"window_size": "20", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+
+    best = _select_best_run([max_gain_worse_direction, exact_margin_better_direction])
+
+    assert best["run"].info.run_id == "exact_margin"
+
+
+def test_best_run_selection_rejects_logged_gain_that_does_not_beat_baseline_mape():
+    contradictory_gain = _run_selection_record(_mock_finished_run(
+        "bad_gain",
+        {"test_lstm_mape_pct": 1.30, "test_baseline_mape_pct": 1.20, "baseline_gain_pct": 3.0, "directional_accuracy_pct": 99.0},
+    ))
+
+    assert _select_best_run([contradictory_gain]) is None
+
+
 def test_best_run_selection_accepts_baseline_gain_alias():
     alias_gain = _run_selection_record(_mock_finished_run(
         "alias_gain",
@@ -108,6 +151,18 @@ def test_best_run_selection_accepts_baseline_gain_alias():
     best = _select_best_run([logged_gain, alias_gain])
 
     assert best["run"].info.run_id == "alias_gain"
+
+
+def test_custom_feature_runs_are_auto_promotion_eligible():
+    record = _run_selection_record(_mock_finished_run(
+        "custom_gain",
+        {"test_lstm_mape_pct": 1.18, "test_baseline_mape_pct": 1.21, "directional_accuracy_pct": 60.0},
+        {"window_size": "20", "target_mode": "log_returns", "feature_mode": "custom"},
+    ))
+
+    best = _select_best_run([record])
+
+    assert best["run"].info.run_id == "custom_gain"
 
 
 def test_best_run_selection_returns_none_without_positive_baseline_gain():
