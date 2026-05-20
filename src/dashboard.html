@@ -404,6 +404,33 @@
       border-color: var(--primary);
     }
 
+    .mc-toggle-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid transparent;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .mc-toggle-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .mc-toggle-btn.active {
+      background: var(--accent) !important;
+      color: #fff !important;
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+    }
+
     .tooltip-icon {
       display: inline-flex;
       align-items: center;
@@ -646,13 +673,9 @@
             <h2 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Ficha Técnica / AWS SageMaker Model
               Card</h2>
             <div class="toggle-group"
-              style="display: inline-flex; background: rgba(255,255,255,0.05); padding: 2px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px; gap: 4px;">
-              <button id="btn-mc-single" onclick="changeModelCardView('single')"
-                style="background: var(--accent); color: #fff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Univariado
-                (Single)</button>
-              <button id="btn-mc-multi" onclick="changeModelCardView('multi')"
-                style="background: transparent; color: #a0aec0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;">Multivariado
-                (Multi)</button>
+              style="display: inline-flex; background: rgba(0,0,0,0.25); padding: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-left: 10px; gap: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
+              <button id="btn-mc-single" class="mc-toggle-btn active" onclick="changeModelCardView('single')">Univariado (Single)</button>
+              <button id="btn-mc-multi" class="mc-toggle-btn" onclick="changeModelCardView('multi')">Multivariado (Multi)</button>
             </div>
             <span id="mc-risk-rating" class="status-badge"
               style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">Medium
@@ -889,9 +912,9 @@
 
         <div class="cards" style="grid-template-columns: repeat(5, 1fr);">
           <div class="card"><span>Total Requisições</span><strong id="tel-reqs">-</strong></div>
-          <div class="card"><span>Taxa de Erro</span><strong id="tel-errs" style="color: var(--danger);">-</strong></div>
+          <div class="card"><span>Taxa de Erro</span><strong id="tel-errs">-</strong></div>
           <div class="card"><span>Uptime</span><strong id="tel-uptime">-</strong></div>
-          <div class="card"><span>Latência Inferência</span><strong id="tel-lat">-</strong></div>
+          <div class="card"><span>Latência da API</span><strong id="tel-lat">-</strong></div>
           <div class="card"><span>Último Treino</span><strong id="tel-train-time">-</strong></div>
         </div>
 
@@ -1394,7 +1417,10 @@
 
         document.getElementById('tel-reqs').textContent = data.api.total_requests;
         const errRate = data.api.total_requests > 0 ? (data.api.total_errors / data.api.total_requests * 100) : 0;
-        document.getElementById('tel-errs').textContent = errRate.toFixed(1) + '%';
+        const errEl = document.getElementById('tel-errs');
+        errEl.textContent = errRate.toFixed(1) + '%';
+        errEl.style.color = errRate > 0 ? 'var(--danger)' : 'var(--success)';
+
         document.getElementById('tel-uptime').textContent = data.uptime_seconds + 's';
         document.getElementById('tel-lat').textContent = data.inference.average_time_ms.toFixed(1) + ' ms';
 
@@ -1545,15 +1571,11 @@
       const btnMulti = document.getElementById('btn-mc-multi');
 
       if (type === 'single') {
-        btnSingle.style.background = 'var(--accent)';
-        btnSingle.style.color = '#fff';
-        btnMulti.style.background = 'transparent';
-        btnMulti.style.color = '#a0aec0';
+        btnSingle.classList.add('active');
+        btnMulti.classList.remove('active');
       } else {
-        btnMulti.style.background = 'var(--accent)';
-        btnMulti.style.color = '#fff';
-        btnSingle.style.background = 'transparent';
-        btnSingle.style.color = '#a0aec0';
+        btnMulti.classList.add('active');
+        btnSingle.classList.remove('active');
       }
 
       await loadModelCard();
@@ -1636,6 +1658,17 @@
         document.getElementById('mc-target-scaler').textContent = training.target_scaler_type || '-';
         document.getElementById('mc-data-source').textContent = training.data_source || '-';
         document.getElementById('mc-run-id').textContent = training.mlflow_run_id || '-';
+
+        const featureCols = training.feature_cols || [];
+        const featureContainer = document.getElementById('mc-features-container');
+        if (featureCols.length > 1) {
+            featureContainer.style.display = 'block';
+            document.getElementById('mc-feature-count').textContent = training.feature_count || featureCols.length;
+            document.getElementById('mc-feature-cols').textContent = featureCols.join(', ');
+        } else {
+            featureContainer.style.display = 'none';
+        }
+
         document.getElementById('mc-observations').textContent = training.training_observations || '-';
 
         document.getElementById('mc-eval-dataset').textContent = evaluation.evaluation_dataset || '-';
