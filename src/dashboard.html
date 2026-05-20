@@ -2082,6 +2082,12 @@
     }
 
     function populateTrainingForm(run_id, p) {
+      const paramsForForm = { ...(p || {}) };
+      const copiedEndDate = String(paramsForForm.end_date || '').trim().toLowerCase();
+      if (!copiedEndDate || copiedEndDate === 'none' || copiedEndDate === 'null' || copiedEndDate === 'nan') {
+        paramsForForm.end_date = paramsForForm.dataset_end_real || '';
+      }
+
       const map = {
         symbol: 'train-symbol',
         start_date: 'train-start',
@@ -2103,32 +2109,32 @@
         target_scaler_type: 'train-target-scaler'
       };
       for (const [key, id] of Object.entries(map)) {
-        if (p[key] !== undefined && document.getElementById(id)) {
-          document.getElementById(id).value = p[key];
+        if (paramsForForm[key] !== undefined && document.getElementById(id)) {
+          document.getElementById(id).value = paramsForForm[key];
         }
       }
 
       document.querySelectorAll('#groups-container input[type="checkbox"]').forEach(cb => cb.checked = false);
 
-      const featureMode = p.feature_mode || 'single';
+      const featureMode = paramsForForm.feature_mode || 'single';
       if (featureMode === 'technical_features' || featureMode === 'custom') {
         document.getElementById('use-calc-features').checked = true;
         document.getElementById('calc-features-panel').classList.remove('hidden');
 
-        let preset = p.feature_preset || 'custom';
+        let preset = paramsForForm.feature_preset || 'custom';
         document.getElementById('feature-preset-select').value = preset;
 
         let selected = [];
-        if (p.selected_features) {
+        if (paramsForForm.selected_features) {
           try {
-            if (p.selected_features.trim().startsWith('[')) {
-              selected = JSON.parse(p.selected_features.replace(/'/g, '"'));
+            if (paramsForForm.selected_features.trim().startsWith('[')) {
+              selected = JSON.parse(paramsForForm.selected_features.replace(/'/g, '"'));
             } else {
-              selected = p.selected_features.split(',').map(x => x.trim()).filter(Boolean);
+              selected = paramsForForm.selected_features.split(',').map(x => x.trim()).filter(Boolean);
             }
           } catch (e) {
             // Fallback para representações em string de listas Python que podem falhar no JSON.parse
-            selected = p.selected_features.replace(/^\[|\]$/g, '').split(',').map(x => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+            selected = paramsForForm.selected_features.replace(/^\[|\]$/g, '').split(',').map(x => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
           }
         }
 

@@ -171,11 +171,15 @@ def add_features(df: pd.DataFrame, required_features: list[str] | None = None) -
     if needs("Log_Volume") and "Volume" in data.columns:
         data["Log_Volume"] = np.log(data["Volume"] + 1e-9)
 
-    data = data.replace([np.inf, -np.inf], np.nan).dropna()
+    data = data.replace([np.inf, -np.inf], np.nan)
+    if req_set is None:
+        data = data.dropna()
+    else:
+        drop_subset = [col for col in req_set if col in data.columns]
+        if drop_subset:
+            data = data.dropna(subset=drop_subset)
     
-    # Manter a verificação do Volume apenas se Volume for necessário ou for o padrão antigo?
-    # Se "Volume" for obrigatório ou presente, podemos remover Volume = 0.
-    if "Volume" in data.columns:
+    if "Volume" in data.columns and (req_set is None or "Volume" in req_set):
         data = data.loc[data["Volume"] > 0].copy()
         
     return data

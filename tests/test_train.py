@@ -17,6 +17,7 @@ from src.train import (
     write_json,
     resolve_feature_columns
 )
+from src.train.pipeline import LEGACY_PREPROCESSING_CUTOFF, _run_start_at_or_before
 
 def test_create_windowed_sequences(synthetic_df):
     window_size = 10
@@ -131,6 +132,16 @@ def test_write_json(tmp_path):
 def test_train_config_default():
     cfg = TrainConfig()
     assert cfg.symbol == "PETR4.SA"
+
+
+def test_legacy_preprocessing_cutoff_for_parent_runs():
+    old_run = MagicMock()
+    old_run.info.start_time = int(LEGACY_PREPROCESSING_CUTOFF.timestamp() * 1000)
+    new_run = MagicMock()
+    new_run.info.start_time = old_run.info.start_time + 1000
+
+    assert _run_start_at_or_before(old_run, LEGACY_PREPROCESSING_CUTOFF) is True
+    assert _run_start_at_or_before(new_run, LEGACY_PREPROCESSING_CUTOFF) is False
 
 def test_run_training_pipeline_csv(tmp_path, synthetic_df, temp_model_dir):
     csv_path = tmp_path / "data.csv"

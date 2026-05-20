@@ -53,8 +53,27 @@ def test_add_features():
     for col in expected_cols:
         assert col in featured.columns
 
-    # Check if NaNs were dropped
+    # Sem required_features, mantem o comportamento legacy: calcula tudo e
+    # remove NaNs globalmente para comparabilidade com runs antigas.
     assert not featured.isnull().values.any()
+
+def test_add_features_only_calculates_required_features():
+    dates = pd.date_range(start="2023-01-01", periods=30)
+    df = pd.DataFrame({
+        "Open": np.random.rand(30) + 10,
+        "High": np.random.rand(30) + 11,
+        "Low": np.random.rand(30) + 9,
+        "Close": np.random.rand(30) + 10.5,
+        "Volume": np.random.randint(100, 1000, 30)
+    }, index=dates)
+    df.iloc[0, df.columns.get_loc("Volume")] = 0
+
+    featured = add_features(df, required_features=["Log_Return", "Close"])
+
+    assert "Log_Return" in featured.columns
+    assert "RSI_14" not in featured.columns
+    assert "MACD" not in featured.columns
+    assert len(featured) == len(df) - 1
 
 def test_add_features_missing_columns():
     df = pd.DataFrame({"Close": [1, 2]})

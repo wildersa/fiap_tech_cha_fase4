@@ -26,6 +26,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 AUTO_PROMOTION_FEATURE_MODES = {"single", "technical_features"}
+LEGACY_PREPROCESSING_CUTOFF = pd.Timestamp("2026-05-20T00:18:36-03:00")
+LEGACY_PREPROCESSING_REFERENCE_RUN_ID = "52b5dc1f08c844bcb35b7b0a57a944eb"
+
+
+def _empty_date(value: str | None) -> bool:
+    return value is None or str(value).strip().lower() in {"", "none", "null", "nan"}
+
+
+def _dataset_date(value) -> str:
+    return str(pd.Timestamp(value).date())
+
+
+def _run_start_at_or_before(run, cutoff: pd.Timestamp) -> bool:
+    start_time = getattr(run.info, "start_time", None)
+    if start_time is None:
+        return False
+    started_at = pd.Timestamp(start_time, unit="ms", tz="UTC")
+    return started_at <= cutoff.tz_convert("UTC")
 
 
 def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict:
@@ -47,25 +65,67 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
     mlflow.set_experiment("stock_lstm_hypersearch")
     
     with mlflow.start_run(run_name=f"{cfg.symbol}_{cfg.feature_mode}_{cfg.target_mode}", nested=True) as run:
+        parent_run = None
+        use_legacy_preprocessing = False
+
         if cfg.parent_run_id:
             mlflow.set_tag("mlflow.parentRunId", cfg.parent_run_id)
             mlflow.set_tag("derived_from", cfg.parent_run_id)
+
+            try:
+                parent_run = mlflow.tracking.MlflowClient().get_run(cfg.parent_run_id)
+                use_legacy_preprocessing = _run_start_at_or_before(parent_run, LEGACY_PREPROCESSING_CUTOFF)
+                parent_params = parent_run.data.params or {}
+
+                if _empty_date(cfg.end_date):
+                    parent_end_date = parent_params.get("dataset_end_real") or parent_params.get("end_date")
+                    if not _empty_date(parent_end_date):
+                        cfg.end_date = parent_end_date
+                        mlflow.log_param("resolved_end_date_from_parent", cfg.end_date)
+            except Exception as e:
+                print(f"[Dataset] Nao foi possivel carregar metadados do run pai: {e}")
+
         mlflow.log_params(asdict(cfg))
+        preprocessing_mode = "legacy_global_dropna" if use_legacy_preprocessing else "selected_feature_dropna"
+        mlflow.log_params(
+            {
+                "preprocessing_mode": preprocessing_mode,
+                "preprocessing_legacy_cutoff": str(LEGACY_PREPROCESSING_CUTOFF),
+                "preprocessing_reference_run_id": LEGACY_PREPROCESSING_REFERENCE_RUN_ID,
+            }
+        )
 
         df_raw = src.train.load_csv(csv_path) if csv_path else src.train.load_yfinance(cfg.symbol, cfg.start_date, cfg.end_date)
         data_source = str(csv_path) if csv_path else "yfinance"
         mlflow.log_param("data_source", data_source)
+        dataset_start_real = _dataset_date(df_raw.index.min())
+        dataset_end_real = _dataset_date(df_raw.index.max())
+        mlflow.log_params(
+            {
+                "dataset_start_real": dataset_start_real,
+                "dataset_end_real": dataset_end_real,
+                "dataset_rows_raw": len(df_raw),
+            }
+        )
 
         target_col = resolve_target_column(cfg.target_mode)
         feature_cols = resolve_feature_columns(cfg, target_col)
 
-        # Apenas passamos as colunas necessárias para evitar cálculos ociosos
-        needed_cols = list(set(feature_cols + [target_col]))
-        df_feat = src.train.add_features(df_raw, needed_cols)
+        # Close é sempre necessário para reconstruir preço e baseline.
+        required_cols = list(set(feature_cols + [target_col, "Close"]))
+        if use_legacy_preprocessing:
+            # Compatibilidade com runs antigas treinadas antes do logging de dataset real.
+            # O run de referencia 52b5dc1f (58.9% direcional) usava add_features()
+            # sem required_features, calculando todos os indicadores e aplicando dropna global.
+            df_feat = src.train.add_features(df_raw)
+        else:
+            df_feat = src.train.add_features(df_raw, required_cols)
         
-        missing_features = [f for f in feature_cols if f not in df_feat.columns]
-        if missing_features:
-            raise ValueError(f"Colunas de feature ausentes no DataFrame gerado: {missing_features}")
+        missing_required = [f for f in required_cols if f not in df_feat.columns]
+        if missing_required:
+            raise ValueError(f"Colunas obrigatorias ausentes no DataFrame gerado: {missing_required}")
+
+        mlflow.log_param("dataset_rows_feat", len(df_feat))
 
         mlflow.log_param("feature_cols", ",".join(feature_cols))
 
