@@ -63,6 +63,18 @@ MODEL_DIR = Path(os.getenv("MODEL_DIR", "models/lstm_petr4"))
 MODEL_DIR_MULTI = Path(os.getenv("MODEL_DIR_MULTI", "models/lstm_petr4_multi"))
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_TEMPLATE = BASE_DIR / "dashboard.html"
+MODEL_ARTIFACT_FILES = [
+    "model.onnx",
+    "model.onnx.data",
+    "model.pt",
+    "model.safetensors",
+    "preprocessor.joblib",
+    "metadata.json",
+    "metrics.json",
+    "history.json",
+    "test_predictions.csv",
+    "model_performance.png",
+]
 START_TIME = time.time()
 APP_METRICS = {
     "total_requests": 0,
@@ -136,8 +148,8 @@ class TrainRequest(BaseModel):
     )
     window_size: int = Field(
         60,
-        description="Tamanho da janela de lookback (dias de histórico para alimentar a LSTM).",
-        examples=[60]
+        description="Tamanho da janela de lookback em pregões. Escolha por significado temporal, por exemplo 5, 10, 20, 30 ou 60.",
+        examples=[20]
     )
     train_ratio: float = Field(
         0.70,
@@ -151,7 +163,7 @@ class TrainRequest(BaseModel):
     )
     hidden_size: int = Field(
         64,
-        description="Número de neurônios na camada oculta da LSTM.",
+        description="Número de neurônios na camada oculta da LSTM. Valores comuns: 16, 32, 64 ou 128.",
         examples=[64]
     )
     num_layers: int = Field(
@@ -176,7 +188,7 @@ class TrainRequest(BaseModel):
     )
     batch_size: int = Field(
         32,
-        description="Tamanho do lote de treinamento.",
+        description="Tamanho do lote de treinamento. Valores comuns: 16, 32, 64 ou 128.",
         examples=[32]
     )
     max_epochs: int = Field(
@@ -255,7 +267,120 @@ if ENABLE_TRAINING_API:
     mlflow.set_tracking_uri(mlflow_uri)
 
 
-def sync_best_model_from_mlflow() -> None:
+def _read_json_file(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _nested_metric(metrics: dict, section: str, key: str) -> float | None:
+    value = metrics.get(section, {}).get(key) if isinstance(metrics.get(section), dict) else None
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _flat_metric(metrics: dict, key: str) -> float | None:
+    value = metrics.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _best_mape_from_metrics(metrics: dict) -> float | None:
+    for value in (
+        _nested_metric(metrics, "lstm_val", "mape_pct"),
+        _flat_metric(metrics, "val_lstm_mape_pct"),
+        _flat_metric(metrics, "lstm_mape_pct"),
+        _nested_metric(metrics, "lstm_test", "mape_pct"),
+        _flat_metric(metrics, "test_lstm_mape_pct"),
+    ):
+        if value is not None and value > 0:
+            return value
+    return None
+
+
+def _section_from_flat(metrics: dict, prefix: str) -> dict:
+    return {
+        "mae": _flat_metric(metrics, f"{prefix}_mae"),
+        "rmse": _flat_metric(metrics, f"{prefix}_rmse"),
+        "mape_pct": _flat_metric(metrics, f"{prefix}_mape_pct"),
+    }
+
+
+def _drop_empty_values(section: dict) -> dict:
+    return {k: v for k, v in section.items() if v is not None}
+
+
+def normalize_model_metrics(metrics: dict | None) -> dict:
+    normalized = dict(metrics or {})
+
+    if not isinstance(normalized.get("lstm_val"), dict):
+        section = _drop_empty_values(_section_from_flat(normalized, "val_lstm"))
+        if section:
+            normalized["lstm_val"] = section
+
+    if not isinstance(normalized.get("lstm_test"), dict):
+        section = _drop_empty_values(_section_from_flat(normalized, "test_lstm"))
+        if section:
+            normalized["lstm_test"] = section
+
+    if not isinstance(normalized.get("baseline_test"), dict):
+        section = _drop_empty_values(_section_from_flat(normalized, "test_baseline"))
+        if section:
+            normalized["baseline_test"] = section
+
+    if not isinstance(normalized.get("relative_gain_vs_baseline_pct"), dict):
+        section = {
+            "mae": _flat_metric(normalized, "gain_mae_pct"),
+            "rmse": _flat_metric(normalized, "gain_rmse_pct"),
+            "mape_pct": _flat_metric(normalized, "gain_mape_pct"),
+        }
+        section = _drop_empty_values(section)
+        if section:
+            normalized["relative_gain_vs_baseline_pct"] = section
+
+    lstm_test = normalized.get("lstm_test") if isinstance(normalized.get("lstm_test"), dict) else {}
+    baseline_test = normalized.get("baseline_test") if isinstance(normalized.get("baseline_test"), dict) else {}
+    if lstm_test and baseline_test:
+        gains = normalized.get("relative_gain_vs_baseline_pct")
+        if not isinstance(gains, dict):
+            gains = {}
+        for key in ("mae", "rmse", "mape_pct"):
+            if key not in gains:
+                lstm_value = _nested_metric(normalized, "lstm_test", key)
+                baseline_value = _nested_metric(normalized, "baseline_test", key)
+                if lstm_value is not None and baseline_value not in (None, 0):
+                    gains[key] = (baseline_value - lstm_value) / baseline_value * 100
+        if gains:
+            normalized["relative_gain_vs_baseline_pct"] = gains
+
+    if "directional_accuracy_test_lstm_pct" not in normalized:
+        direction = _flat_metric(normalized, "directional_accuracy_pct")
+        if direction is not None:
+            normalized["directional_accuracy_test_lstm_pct"] = direction
+
+    return normalized
+
+
+def _merge_missing_metrics(primary: dict, fallback: dict) -> dict:
+    merged = dict(primary or {})
+    for key, value in (fallback or {}).items():
+        if key not in merged or merged[key] in ({}, None):
+            merged[key] = value
+    return normalize_model_metrics(merged)
+
+
+def sync_best_model_from_mlflow(force_best: bool = False) -> None:
     """
     MLOps Automatic Promotion:
     Sincroniza automaticamente o melhor modelo de tipo 'single' (univariado) para MODEL_DIR,
@@ -279,12 +404,12 @@ def sync_best_model_from_mlflow() -> None:
         for exp in experiments:
             runs = client.search_runs(experiment_ids=[exp.experiment_id])
             for r in runs:
-                feature_mode = r.data.params.get("feature_mode", "single")
-                mape = (
-                    r.data.metrics.get("val_lstm_mape_pct") or 
-                    r.data.metrics.get("lstm_mape_pct") or
-                    r.data.metrics.get("test_lstm_mape_pct")
-                )
+                if getattr(r.info, "status", None) != "FINISHED":
+                    continue
+                feature_mode = r.data.params.get("feature_mode")
+                if not feature_mode:
+                    continue
+                mape = _best_mape_from_metrics(normalize_model_metrics(r.data.metrics))
                 if mape is not None and mape > 0:
                     if feature_mode == "single":
                         if mape < best_mape_single:
@@ -302,28 +427,29 @@ def sync_best_model_from_mlflow() -> None:
             
             current_mape = float("inf")
             metrics_path = target_dir / "metrics.json"
-            if metrics_path.exists():
-                try:
-                    current_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-                    current_mape = (
-                        current_metrics.get("lstm_val", {}).get("mape_pct") or
-                        current_metrics.get("val_lstm_mape_pct") or
-                        current_metrics.get("lstm_test", {}).get("mape_pct") or
-                        current_metrics.get("test_lstm_mape_pct") or
-                        current_metrics.get("lstm_mape_pct") or
-                        float("inf")
-                    )
-                except Exception:
-                    pass
+            metadata_path = target_dir / "metadata.json"
+            current_metrics = normalize_model_metrics(_read_json_file(metrics_path))
+            current_metadata = _read_json_file(metadata_path)
+            current_metric = _best_mape_from_metrics(current_metrics)
+            if current_metric is not None:
+                current_mape = current_metric
 
-            if best_mape < (current_mape - 1e-6):
+            current_run_id = current_metadata.get("run_id")
+            missing_metrics = not bool(current_metrics.get("lstm_test"))
+            should_promote = (
+                best_mape < (current_mape - 1e-6)
+                or missing_metrics
+                or (force_best and current_run_id != best_run.info.run_id)
+            )
+
+            if should_promote:
                 print(f"[MLOps] Novo Campeao {label} detectado no MLflow (Run {best_run.info.run_id}) com Validation MAPE {best_mape:.4f}% (anterior em disco: {current_mape:.4f}%)")
                 target_dir.mkdir(parents=True, exist_ok=True)
                 local_path = mlflow.artifacts.download_artifacts(run_id=best_run.info.run_id)
                 src_path = Path(local_path)
                 
                 copied_any = False
-                for filename in ["model.onnx", "model.pt", "model.safetensors", "preprocessor.joblib", "metadata.json", "metrics.json", "model_performance.png"]:
+                for filename in MODEL_ARTIFACT_FILES:
                     src_file = src_path / filename
                     if src_file.exists():
                         shutil.copy(str(src_file), str(target_dir / filename))
@@ -634,10 +760,15 @@ def model_card_payload(model_dir: Path) -> dict:
     metrics_path = model_dir / "metrics.json"
     metadata = {}
     metrics = {}
-    if metadata_path.exists():
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    if metrics_path.exists():
-        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    metadata = _read_json_file(metadata_path)
+    metrics = normalize_model_metrics(_read_json_file(metrics_path))
+
+    if ENABLE_TRAINING_API and metadata.get("run_id"):
+        try:
+            run = MlflowClient().get_run(metadata["run_id"])
+            metrics = _merge_missing_metrics(metrics, normalize_model_metrics(run.data.metrics))
+        except Exception:
+            pass
 
     preprocessor = None
     if (model_dir / "preprocessor.joblib").exists():
@@ -786,7 +917,7 @@ def home():
 )
 def model_card(type: str = "single"):
     # Garante sincronização das últimas runs antes de responder
-    sync_best_model_from_mlflow()
+    sync_best_model_from_mlflow(force_best=True)
     
     if type == "multi":
         return model_card_payload(MODEL_DIR_MULTI)
@@ -977,81 +1108,6 @@ def predict_ohlcv(request: PredictOhlcvRequest):
     APP_METRICS["last_prediction"] = response
     return response
 
-
-def apply_dashboard_label_overrides(html: str) -> str:
-    replacements = {
-        "Target Mode <span class=\"tooltip-icon\" data-tooltip=\"Formato da variável alvo.\">?</span>": (
-            "Alvo da previsão <span class=\"tooltip-icon\" "
-            "data-tooltip=\"O que o modelo aprende a prever. Ex.: próximo log-retorno ou próximo fechamento bruto.\">?</span>"
-        ),
-        "Feature Mode <span class=\"tooltip-icon\"\r\n                  data-tooltip=\"Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.\">?</span>": (
-            "Entradas do modelo <span class=\"tooltip-icon\"\r\n                  data-tooltip=\"Quais variáveis entram no X histórico da LSTM. Isto é diferente do alvo: o alvo é o que o modelo tenta prever. Modos multivariados são experimentais e exigem payload OHLCV na inferência.\">?</span>"
-        ),
-        "<option value=\"log_returns\">log_returns (Recomendado)</option>": (
-            "<option value=\"log_returns\">Prever próximo log-retorno (Recomendado)</option>"
-        ),
-        "<option value=\"raw_close\">raw_close</option>": (
-            "<option value=\"raw_close\">Prever próximo fechamento bruto</option>"
-        ),
-        "<option value=\"single\">single (Univariado - Produção)</option>": (
-            "<option value=\"single\">Close/retorno histórico (Univariado - Produção)</option>"
-        ),
-        "<option value=\"ohlcv\">ohlcv (Multivariado - Experimental)</option>": (
-            "<option value=\"ohlcv\">OHLCV bruto: Open, High, Low, Close, Volume (Experimental)</option>"
-        ),
-        "<option value=\"ohlcv_returns\">ohlcv_returns (Multivariado - Experimental)</option>": (
-            "<option value=\"ohlcv_returns\">OHLCV + log-retorno histórico (Experimental)</option>"
-        ),
-        "<option value=\"technical_features\">technical_features (Multivariado - Experimental)</option>": (
-            "<option value=\"technical_features\">Indicadores técnicos calculados (Experimental)</option>"
-        ),
-        "<option value=\"custom\">custom (Seleção Customizada - Experimental)</option>": (
-            "<option value=\"custom\">Features escolhidas manualmente (Experimental)</option>"
-        ),
-        "<span>Target Mode</span>": "<span>Alvo</span>",
-        "<span>Feature Mode</span>": "<span>Entradas</span>",
-        "<th>Target Mode</th>": "<th>Alvo</th>",
-    }
-    for old, new in replacements.items():
-        html = html.replace(old, new)
-
-    # Exibe o baseline persistente diretamente na tela de treinamento para comparar LSTM vs. chute ingênuo.
-    dashboard_patches = {
-        "<th>MAPE Teste</th>\r\n                  <th>RMSE Teste</th>": (
-            "<th>MAPE LSTM</th>\r\n"
-            "                  <th>MAPE Baseline</th>\r\n"
-            "                  <th>Ganho MAPE</th>\r\n"
-            "                  <th>RMSE Teste</th>"
-        ),
-        "const mape = m.test_lstm_mape_pct ? m.test_lstm_mape_pct.toFixed(2) + '%' : '-';\r\n"
-        "          const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';": (
-            "const mapeValue = Number(m.test_lstm_mape_pct);\r\n"
-            "          const baselineMapeValue = Number(m.test_baseline_mape_pct);\r\n"
-            "          const gainMapeValue = Number.isFinite(Number(m.gain_mape_pct))\r\n"
-            "            ? Number(m.gain_mape_pct)\r\n"
-            "            : (Number.isFinite(mapeValue) && Number.isFinite(baselineMapeValue) && baselineMapeValue !== 0\r\n"
-            "              ? ((baselineMapeValue - mapeValue) / baselineMapeValue) * 100\r\n"
-            "              : NaN);\r\n"
-            "\r\n"
-            "          const mape = Number.isFinite(mapeValue) ? mapeValue.toFixed(2) + '%' : '-';\r\n"
-            "          const baselineMape = Number.isFinite(baselineMapeValue) ? baselineMapeValue.toFixed(2) + '%' : '-';\r\n"
-            "          const gainMape = Number.isFinite(gainMapeValue) ? (gainMapeValue > 0 ? '+' : '') + gainMapeValue.toFixed(1) + '%' : '-';\r\n"
-            "          const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';"
-        ),
-        "<td style=\"font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}\">${mape}</td>\r\n"
-        "            <td>${rmse}</td>": (
-            "<td style=\"font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}\">${mape}</td>\r\n"
-            "            <td style=\"color: var(--muted);\">${baselineMape}</td>\r\n"
-            "            <td style=\"font-weight: 600; color: ${gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit')}\">${gainMape}</td>\r\n"
-            "            <td>${rmse}</td>"
-        ),
-    }
-    for old, new in dashboard_patches.items():
-        html = html.replace(old, new)
-    html = html.replace('colspan="6"', 'colspan="9"')
-    return html
-
-
 @app.get(
     "/dashboard",
     summary="Dashboard Visual Web",
@@ -1068,7 +1124,6 @@ def dashboard():
     sample = {"symbol": "PETR4.SA", "closes": sample_closes}
     sample_text = json.dumps(sample, indent=2, ensure_ascii=False)
     html = DASHBOARD_TEMPLATE.read_text(encoding="utf-8")
-    html = apply_dashboard_label_overrides(html)
     html = html.replace("__SAMPLE_PAYLOAD__", sample_text)
     html = html.replace("__MODEL_DIR__", str(MODEL_DIR))
     html = html.replace("__ENABLE_TRAINING_API__", "true" if ENABLE_TRAINING_API else "false")

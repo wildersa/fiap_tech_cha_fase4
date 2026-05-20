@@ -658,9 +658,10 @@
             abordagem de <strong>Anchor Price</strong>, aplica o scaler em tempo real, projeta a inferência na GPU/CPU e
             decodifica a previsão para o próximo preço de fechamento.
           </p>
-          <div class="cards" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div class="cards" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
             <div class="card" style="padding: 8px 10px;"><span>Entrada</span><strong>Série OHLCV</strong></div>
             <div class="card" style="padding: 8px 10px;"><span>Alvo</span><strong>Target Ratio</strong></div>
+            <div class="card" style="padding: 8px 10px;"><span>Baseline</span><strong>Último fechamento</strong></div>
             <div class="card" style="padding: 8px 10px;"><span>Saída</span><strong>Preço Previsto de Fechamento</strong>
             </div>
           </div>
@@ -740,11 +741,11 @@
                   <strong id="mc-window" style="font-size: 13px;">-</strong>
                 </div>
                 <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                  <span>Target Mode</span>
+                  <span>Alvo</span>
                   <strong id="mc-target" style="font-size: 13px;">-</strong>
                 </div>
                 <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
-                  <span>Feature Mode</span>
+                  <span>Entradas</span>
                   <strong id="mc-feature-mode" style="font-size: 13px;">-</strong>
                 </div>
                 <div class="card" style="background: rgba(0,0,0,0.15); padding: 8px 10px;">
@@ -812,8 +813,12 @@
               </div>
 
               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                <div class="card" style="padding: 8px 10px;"><span>MAPE (%)</span><strong id="mc-mape"
+                <div class="card" style="padding: 8px 10px;"><span>MAPE LSTM (%)</span><strong id="mc-mape"
                     style="color: var(--success); font-size: 13px;">-</strong></div>
+                <div class="card" style="padding: 8px 10px;"><span>MAPE Baseline (%)</span><strong
+                    id="mc-baseline-mape" style="font-size: 13px;">-</strong></div>
+                <div class="card" style="padding: 8px 10px;"><span>Ganho MAPE</span><strong id="mc-gain-mape"
+                    style="font-size: 13px;">-</strong></div>
                 <div class="card" style="padding: 8px 10px;"><span>MAE</span><strong id="mc-mae"
                     style="font-size: 13px;">-</strong></div>
                 <div class="card" style="padding: 8px 10px;"><span>RMSE</span><strong id="mc-rmse"
@@ -1015,21 +1020,22 @@
             </div>
 
             <div class="form-group">
-              <label>Target Mode <span class="tooltip-icon" data-tooltip="Formato da variável alvo.">?</span></label>
+              <label>Alvo da previsão <span class="tooltip-icon"
+                  data-tooltip="O que o modelo aprende a prever. Ex.: próximo log-retorno ou próximo fechamento bruto.">?</span></label>
               <select id="train-target">
-                <option value="log_returns">log_returns (Recomendado)</option>
-                <option value="raw_close">raw_close</option>
+                <option value="log_returns">Prever próximo log-retorno (Recomendado)</option>
+                <option value="raw_close">Prever próximo fechamento bruto</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Feature Mode <span class="tooltip-icon"
-                  data-tooltip="Variáveis preditivas da rede. Modos multivariados (diferentes de 'single') são experimentais e não serão promovidos automaticamente para produção.">?</span></label>
+              <label>Entradas do modelo <span class="tooltip-icon"
+                  data-tooltip="Quais variáveis entram no X histórico da LSTM. single e technical_features são elegíveis para promoção automática; demais modos multivariados exigem validação manual.">?</span></label>
               <select id="train-feature" onchange="onFeatureModeChange()">
-                <option value="single">single (Univariado - Produção)</option>
-                <option value="ohlcv">ohlcv (Multivariado - Experimental)</option>
-                <option value="ohlcv_returns">ohlcv_returns (Multivariado - Experimental)</option>
-                <option value="technical_features">technical_features (Multivariado - Experimental)</option>
-                <option value="custom">custom (Seleção Customizada - Experimental)</option>
+                <option value="single">Close/retorno histórico (Univariado - Produção)</option>
+                <option value="ohlcv">OHLCV bruto: Open, High, Low, Close, Volume (Experimental)</option>
+                <option value="ohlcv_returns">OHLCV + log-retorno histórico (Experimental)</option>
+                <option value="technical_features">Indicadores técnicos calculados (Produção)</option>
+                <option value="custom">Features escolhidas manualmente (Experimental)</option>
               </select>
             </div>
 
@@ -1083,8 +1089,13 @@
 
             <div class="form-group">
               <label>Hidden Size <span class="tooltip-icon"
-                  data-tooltip="Capacidade de memória da rede. Valores comuns: 32, 64, 128.">?</span></label>
-              <input id="train-hidden" type="number" value="64">
+                  data-tooltip="Capacidade de memória da rede. Use potências de 2 por organização de treino; 32 ou 64 são bons padrões, 128 aumenta capacidade e risco de overfitting.">?</span></label>
+              <select id="train-hidden">
+                <option value="16">16</option>
+                <option value="32">32</option>
+                <option value="64" selected>64</option>
+                <option value="128">128</option>
+              </select>
             </div>
             <div class="form-group">
               <label>Num Layers <span class="tooltip-icon"
@@ -1094,13 +1105,18 @@
 
             <div class="form-group">
               <label>Window Size <span class="tooltip-icon"
-                  data-tooltip="Lookback. Quantos dias no passado a rede lê para prever o próximo. Janelas longas captam tendências maiores mas podem incluir ruídos desnecessários.">?</span></label>
+                  data-tooltip="Lookback em pregões. Não precisa ser potência de 2: 5≈1 semana, 20≈1 mês, 60≈3 meses.">?</span></label>
               <input id="train-window" type="number" value="60">
             </div>
             <div class="form-group">
               <label>Batch Size <span class="tooltip-icon"
-                  data-tooltip="Quantos lotes a rede lê antes de atualizar os pesos. Batches menores = pulos frequentes mas erráticos. Batches maiores = média de erros mais suave e rápida.">?</span></label>
-              <input id="train-batch" type="number" value="32">
+                  data-tooltip="Quantidade de amostras por atualização de pesos. Use potências de 2 por costume de GPU/memória; 32 é um bom padrão.">?</span></label>
+              <select id="train-batch">
+                <option value="16">16</option>
+                <option value="32" selected>32</option>
+                <option value="64">64</option>
+                <option value="128">128</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -1175,8 +1191,10 @@
                 <tr>
                   <th>Run ID</th>
                   <th>Status</th>
-                  <th>Target Mode</th>
-                  <th>MAPE Teste</th>
+                  <th>Alvo</th>
+                  <th>MAPE LSTM</th>
+                  <th>MAPE Baseline</th>
+                  <th>Ganho MAPE</th>
                   <th>RMSE Teste</th>
                   <th>MAE Teste</th>
                   <th>Acurácia Dir.</th>
@@ -1184,7 +1202,7 @@
               </thead>
               <tbody id="runs-table-body">
                 <tr>
-                  <td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no
+                  <td colspan="9" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no
                     MLflow...</td>
                 </tr>
               </tbody>
@@ -1681,14 +1699,32 @@
         document.getElementById('mc-eval-dataset').textContent = evaluation.evaluation_dataset || '-';
 
         const evalMetrics = evaluation.metrics || {};
-        if (evalMetrics && evalMetrics.lstm_test) {
-          document.getElementById('mc-mape').textContent = evalMetrics.lstm_test.mape_pct.toFixed(2) + '%';
-          document.getElementById('mc-mae').textContent = evalMetrics.lstm_test.mae.toFixed(2);
-          document.getElementById('mc-rmse').textContent = evalMetrics.lstm_test.rmse.toFixed(2);
-          document.getElementById('mc-dir').textContent = (evalMetrics.directional_accuracy_test_lstm_pct || 0).toFixed(1) + '%';
-        } else {
-          ['mc-mape', 'mc-mae', 'mc-rmse', 'mc-dir'].forEach(id => document.getElementById(id).textContent = '-');
-        }
+        const lstmTest = evalMetrics.lstm_test || {};
+        const baselineTest = evalMetrics.baseline_test || {};
+        const relativeGain = evalMetrics.relative_gain_vs_baseline_pct || {};
+        const metricNumber = (value) => {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? numeric : null;
+        };
+        const formatNumber = (value, digits = 2, suffix = '') => {
+          const numeric = metricNumber(value);
+          return numeric === null ? '-' : numeric.toFixed(digits) + suffix;
+        };
+        const formatGain = (value) => {
+          const numeric = metricNumber(value);
+          if (numeric === null) return '-';
+          return (numeric > 0 ? '+' : '') + numeric.toFixed(1) + '%';
+        };
+        const gainMapeValue = metricNumber(relativeGain.mape_pct);
+
+        document.getElementById('mc-mape').textContent = formatNumber(lstmTest.mape_pct, 2, '%');
+        document.getElementById('mc-baseline-mape').textContent = formatNumber(baselineTest.mape_pct, 2, '%');
+        const gainMapeEl = document.getElementById('mc-gain-mape');
+        gainMapeEl.textContent = formatGain(gainMapeValue);
+        gainMapeEl.style.color = gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit');
+        document.getElementById('mc-mae').textContent = formatNumber(lstmTest.mae, 2);
+        document.getElementById('mc-rmse').textContent = formatNumber(lstmTest.rmse, 2);
+        document.getElementById('mc-dir').textContent = formatNumber(evalMetrics.directional_accuracy_test_lstm_pct, 1, '%');
 
         document.getElementById('mc-ethical').textContent = additional.ethical_considerations || '-';
         document.getElementById('mc-caveats').textContent = additional.caveats_and_recommendations || '-';
@@ -2077,14 +2113,14 @@
 
     async function loadRuns() {
       const tbody = document.getElementById('runs-table-body');
-      tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no MLflow...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align: center; padding: 32px;">Buscando métricas no MLflow...</td></tr>';
       try {
         const response = await fetch('/runs');
         const data = await response.json();
         window.allRunsData = data.runs;
         tbody.innerHTML = '';
         if (!data.runs || data.runs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align: center; padding: 32px;">Nenhum treinamento encontrado neste experimento.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align: center; padding: 32px;">Nenhum treinamento encontrado neste experimento.</td></tr>';
           return;
         }
         for (const r of data.runs) {
@@ -2092,7 +2128,12 @@
           const p = r.params || {};
           const m = r.metrics || {};
 
-          const mape = m.test_lstm_mape_pct ? m.test_lstm_mape_pct.toFixed(2) + '%' : '-';
+          const mapeValue = Number(m.test_lstm_mape_pct);
+          const baselineMapeValue = Number(m.test_baseline_mape_pct);
+          const gainMapeValue = Number(m.gain_mape_pct);
+          const mape = Number.isFinite(mapeValue) ? mapeValue.toFixed(2) + '%' : '-';
+          const baselineMape = Number.isFinite(baselineMapeValue) ? baselineMapeValue.toFixed(2) + '%' : '-';
+          const gainMape = Number.isFinite(gainMapeValue) ? (gainMapeValue > 0 ? '+' : '') + gainMapeValue.toFixed(1) + '%' : '-';
           const rmse = m.test_lstm_rmse ? m.test_lstm_rmse.toFixed(4) : '-';
           const mae = m.test_lstm_mae ? m.test_lstm_mae.toFixed(4) : '-';
           const dirAcc = m.directional_accuracy_pct ? m.directional_accuracy_pct.toFixed(1) + '%' : '-';
@@ -2115,7 +2156,9 @@
             <td>${runIdHtml}</td>
             <td>${statusHtml}</td>
             <td>${tMode}</td>
-            <td style="font-weight: 500; color: ${m.test_lstm_mape_pct < 2.0 ? 'var(--success)' : 'inherit'}">${mape}</td>
+            <td style="font-weight: 500; color: ${mapeValue < 2.0 ? 'var(--success)' : 'inherit'}">${mape}</td>
+            <td style="color: var(--muted);">${baselineMape}</td>
+            <td style="font-weight: 600; color: ${gainMapeValue > 0 ? 'var(--success)' : (gainMapeValue < 0 ? 'var(--danger)' : 'inherit')}">${gainMape}</td>
             <td>${rmse}</td>
             <td>${mae}</td>
             <td style="color: ${m.directional_accuracy_pct > 50 ? 'var(--success)' : 'inherit'}">${dirAcc}</td>
@@ -2145,7 +2188,7 @@
           }
 
           detailsTr.innerHTML = `
-            <td colspan="6" style="padding: 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); max-width: 100%;">
+            <td colspan="9" style="padding: 16px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.05); max-width: 100%;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                 <div style="font-size: 13px; font-weight: 600; color: var(--accent-hover);">Hiperparâmetros do Run:</div>
                 <div>
@@ -2160,7 +2203,7 @@
           tbody.appendChild(detailsTr);
         }
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="error" style="margin: 0; border: none; text-align: center; padding: 32px;">Erro ao carregar MLflow: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="error" style="margin: 0; border: none; text-align: center; padding: 32px;">Erro ao carregar MLflow: ${e.message}</td></tr>`;
       }
     }
 
@@ -2255,7 +2298,13 @@
           errEl.textContent = data.detail || JSON.stringify(data, null, 2);
           errEl.classList.remove('hidden');
         } else {
-          succEl.textContent = data.message + '\n\nMétricas de Validação e Teste:\n' + JSON.stringify(data.metrics.lstm_test, null, 2);
+          const metrics = data.metrics || {};
+          const testSummary = {
+            lstm_test: metrics.lstm_test || {},
+            baseline_test: metrics.baseline_test || {},
+            relative_gain_vs_baseline_pct: metrics.relative_gain_vs_baseline_pct || {}
+          };
+          succEl.textContent = data.message + '\n\nMétricas de Validação e Teste:\n' + JSON.stringify(testSummary, null, 2);
           succEl.classList.remove('hidden');
           loadRuns();
           loadModelCard();
@@ -2320,7 +2369,7 @@
         </div>`;
       }
 
-      let metricsHtml = metricDiff('MAPE Teste (%)', 'test_lstm_mape_pct', true);
+      let metricsHtml = metricDiff('MAPE LSTM (%)', 'test_lstm_mape_pct', true);
       metricsHtml += metricDiff('RMSE Teste', 'test_lstm_rmse', true);
       metricsHtml += metricDiff('MAE Teste', 'test_lstm_mae', true);
       metricsHtml += metricDiff('Acurácia Dir. (%)', 'directional_accuracy_pct', false);

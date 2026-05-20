@@ -255,19 +255,10 @@ def test_resolve_feature_columns_invalid_feature():
         resolve_feature_columns(cfg, "Log_Return")
 
 
-@patch("shutil.rmtree")
 @patch("src.train.load_yfinance")
-def test_metadata_and_preprocessor_preservation(mock_load_yf, mock_rmtree, synthetic_df):
+def test_metadata_and_preprocessor_preservation(mock_load_yf, synthetic_df, temp_model_dir):
     import json
     import joblib
-    import shutil
-    
-    temp_challenger = Path("models/.temp_challenger")
-    if temp_challenger.exists():
-        try:
-            shutil.rmtree(temp_challenger)
-        except Exception:
-            pass
 
     mock_load_yf.return_value = synthetic_df
     cfg = TrainConfig(
@@ -275,7 +266,7 @@ def test_metadata_and_preprocessor_preservation(mock_load_yf, mock_rmtree, synth
         window_size=5,
         max_epochs=1,
         batch_size=4,
-        output_dir="models/some_dir",
+        output_dir=str(temp_model_dir),
         train_ratio=0.6,
         val_ratio=0.2,
         hidden_size=8,
@@ -285,31 +276,24 @@ def test_metadata_and_preprocessor_preservation(mock_load_yf, mock_rmtree, synth
         feature_preset="returns_basic"
     )
     mlflow.end_run()
-    try:
-        results = run_training_pipeline(cfg)
-        
-        # Check metadata.json in temp_challenger
-        metadata_path = temp_challenger / "metadata.json"
-        assert metadata_path.exists()
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        
-        expected_features = ["Log_Return", "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5"]
-        assert metadata["selected_features"] == expected_features
-        assert metadata["feature_cols"] == expected_features
-        assert metadata["feature_count"] == len(expected_features)
+    results = run_training_pipeline(cfg)
 
-        # Check preprocessor.joblib preserves exact order of feature_cols
-        preproc_path = temp_challenger / "preprocessor.joblib"
-        assert preproc_path.exists()
-        preprocessor = joblib.load(preproc_path)
-        assert preprocessor["feature_cols"] == expected_features
-        assert preprocessor["selected_features"] == expected_features
-    finally:
-        if temp_challenger.exists():
-            try:
-                shutil.rmtree(temp_challenger)
-            except Exception:
-                pass
+    assert results["output_dir"] == str(temp_model_dir)
+
+    metadata_path = temp_model_dir / "metadata.json"
+    assert metadata_path.exists()
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+    expected_features = ["Log_Return", "Log_Return_Lag1", "Log_Return_Lag2", "Log_Return_Lag3", "Log_Return_Lag5"]
+    assert metadata["selected_features"] == expected_features
+    assert metadata["feature_cols"] == expected_features
+    assert metadata["feature_count"] == len(expected_features)
+
+    preproc_path = temp_model_dir / "preprocessor.joblib"
+    assert preproc_path.exists()
+    preprocessor = joblib.load(preproc_path)
+    assert preprocessor["feature_cols"] == expected_features
+    assert preprocessor["selected_features"] == expected_features
 
 
 @patch("src.train.load_yfinance")
@@ -332,11 +316,11 @@ def test_non_single_model_no_promotion(mock_load_yf, synthetic_df, temp_model_di
         hidden_size=8,
         num_layers=1,
         device="cpu",
-        feature_mode="ohlcv" # Not single, so should be rejected for auto-promotion
+        feature_mode="ohlcv" # Not eligible, so should be rejected for auto-promotion
     )
     mlflow.end_run()
     results = run_training_pipeline(cfg)
     
-    # Because it is not "single", it is not promoted and the final output dir is not created/saved
+    # Because it is not an eligible champion feature mode, it is not promoted.
     model_file = final_output_dir / "model.onnx"
     assert not model_file.exists()

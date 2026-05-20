@@ -51,7 +51,8 @@ def main() -> None:
         "num_layers": [1, 2],
         "dropout": [0.1, 0.2],
         "learning_rate": [1e-3, 5e-4],
-        "window_size": [30, 60],
+        "window_size": [20, 30, 60],
+        "batch_size": [32, 64],
         "feature_scaler_type": ["standard", "robust"],
         "target_scaler_type": ["standard", "minmax"]
     }
@@ -92,6 +93,7 @@ def main() -> None:
                 dropout=params["dropout"],
                 learning_rate=params["learning_rate"],
                 window_size=params["window_size"],
+                batch_size=params["batch_size"],
                 feature_scaler_type=params["feature_scaler_type"],
                 target_scaler_type=params["target_scaler_type"],
                 feature_mode="technical_features",

@@ -24,6 +24,8 @@ from src.train.artifacts import write_json, plot_performance
 from dotenv import load_dotenv
 load_dotenv()
 
+AUTO_PROMOTION_FEATURE_MODES = {"single", "technical_features"}
+
 
 def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict:
     set_seed(cfg.seed)
@@ -273,8 +275,9 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         # MLOps: Champion/Challenger Promotion Evaluation
         is_better = True
         
-        if cfg.feature_mode != "single":
-            print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos univariados (single) sao elegiveis para promocao automatica na producao.")
+        if cfg.feature_mode not in AUTO_PROMOTION_FEATURE_MODES:
+            eligible_modes = ", ".join(sorted(AUTO_PROMOTION_FEATURE_MODES))
+            print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos com feature_mode em {{{eligible_modes}}} sao elegiveis para promocao automatica na producao.")
             is_better = False
         
         champion_mape = None
