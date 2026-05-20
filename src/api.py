@@ -40,6 +40,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Gauge, Counter, REGISTRY
 from pydantic import BaseModel, Field
+from src.train.champion_selection import build_selection_record as build_champion_selection_record, select_best_record as select_champion_record
 
 # Métricas oficiais do Prometheus para monitoramento de recursos e performance
 PROM_CPU_USAGE = Gauge('api_cpu_usage_percent', 'Uso de CPU do processo em porcentagem')
@@ -378,35 +379,11 @@ def _inference_required_rows(params: dict) -> int:
 
 
 def _run_selection_record(run) -> dict | None:
-    metrics = normalize_model_metrics(run.data.metrics)
-    mape = _selection_mape(metrics)
-    if mape is None:
-        return None
-    params = run.data.params or {}
-    return {
-        "run": run,
-        "baseline_gain_pct": _baseline_gain_pct(metrics),
-        "directional_accuracy": _directional_accuracy(metrics),
-        "mape": mape,
-        "inference_required_rows": _inference_required_rows(params),
-    }
+    return build_champion_selection_record(run.data.metrics, run.data.params or {}, run)
 
 
 def _select_best_run(records: list[dict]) -> dict | None:
-    eligible = [r for r in records if r["baseline_gain_pct"] is not None and r["baseline_gain_pct"] > 0]
-    if eligible:
-        return sorted(
-            eligible,
-            key=lambda r: (
-                -r["baseline_gain_pct"],
-                -r["directional_accuracy"],
-                r["mape"],
-                r["inference_required_rows"],
-            ),
-        )[0]
-    if records:
-        return sorted(records, key=lambda r: r["mape"])[0]
-    return None
+    return select_champion_record(records)
 
 
 def _section_from_flat(metrics: dict, prefix: str) -> dict:
@@ -500,7 +477,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
         client = MlflowClient()
         experiments = client.search_experiments()
         
-        # Encontrar os melhores modelos no MLflow usando ganho contra baseline como criterio primario.
+        # Encontrar os melhores modelos no MLflow usando ganho vs baseline, margem de empate e desempates.
         single_candidates = []
         multi_candidates = []
 
@@ -526,6 +503,7 @@ def sync_best_model_from_mlflow(force_best: bool = False) -> None:
         # Função auxiliar para promover modelo para um diretório específico
         def promote_to_dir(best_record, target_dir, label):
             if best_record is None:
+                print(f"[MLOps] Nenhum modelo {label} superou o baseline persistente; nenhuma promocao sera feita.")
                 return False
             best_run = best_record["run"]
             best_mape = best_record["mape"]
@@ -745,6 +723,8 @@ def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
 
     # 5. Adicionar/calcular features baseado no preprocessor do modelo treinado
     feature_mode = preprocessor.get("feature_mode", "single")
+    feature_cols = preprocessor.get("feature_cols", ["Log_Return"])
+    
     if feature_mode == "single":
         target_col = preprocessor.get("target_col", "Log_Return")
         if target_col == "Log_Return":
@@ -754,11 +734,12 @@ def predict_next_ohlcv(rows_payload: List[dict]) -> dict:
         # Remove as linhas com NaN resultantes do shift/pct_change
         df = df.dropna(subset=[target_col])
     else:
-        # Modo multivariado: calcular todas as features
-        df = add_features(df)
+        # Modo multivariado: calcular as features necessárias
+        target_col = preprocessor.get("target_col", "")
+        needed_cols = list(set(feature_cols + ([target_col] if target_col else [])))
+        df = add_features(df, required_features=needed_cols)
 
     # 6. Validar que as colunas de feature esperadas foram geradas
-    feature_cols = preprocessor.get("feature_cols", ["Log_Return"])
     missing_feats = [f for f in feature_cols if f not in df.columns]
     if missing_feats:
         raise ValueError(f"Não foi possível calcular todas as features necessárias: {missing_feats}. Envie mais linhas de histórico.")

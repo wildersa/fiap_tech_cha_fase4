@@ -1286,12 +1286,28 @@
   ]
 }`;
 
-    function changeInferenceModel(type) {
+    async function changeInferenceModel(type) {
       currentInferenceModel = type;
       const btnSingle = document.getElementById('btn-inf-single');
       const btnMulti = document.getElementById('btn-inf-multi');
       const infoEl = document.getElementById('inference-model-info');
       const payloadTextarea = document.getElementById('payload');
+
+      // Fetch dynamic window size
+      let windowSize = 60; // default
+      try {
+        const res = await fetch(`/model-card?type=${type}`);
+        if(res.ok) {
+           const data = await res.json();
+           if(data.training_details && data.training_details.window_size) {
+              windowSize = data.training_details.window_size;
+           }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch window_size", e);
+      }
+
+      const requirementMsg = `<br/><span style="color:#fcd34d; font-weight:600; margin-top:4px; display:inline-block;">⚠️ O modelo atual exige um json contendo pelo menos ${windowSize + 1} fechamentos/dias para obter as sequências passadas necessárias.</span>`;
 
       if (type === 'single') {
         btnSingle.style.background = 'var(--accent)';
@@ -1301,7 +1317,7 @@
         
         infoEl.innerHTML = `
           <strong style="color: var(--accent-hover); display: block; margin-bottom: 2px;">🏆 Melhor Modelo Univariado (Single)</strong>
-          <span>Esta opção executa inferência usando o melhor modelo univariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4</code>). Requer apenas o histórico de fechamentos recentes.</span>
+          <span>Esta opção executa inferência usando o melhor modelo univariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4</code>). Requer apenas o histórico de fechamentos recentes.${requirementMsg}</span>
         `;
         payloadTextarea.value = SAMPLE_PAYLOAD_SINGLE;
       } else {
@@ -1312,7 +1328,7 @@
 
         infoEl.innerHTML = `
           <strong style="color: var(--accent-hover); display: block; margin-bottom: 2px;">🏆 Melhor Modelo Multivariado (Multi)</strong>
-          <span>Esta opção executa inferência usando o melhor modelo multivariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4_multi</code>). Requer a série histórica de dados OHLCV completos.</span>
+          <span>Esta opção executa inferência usando o melhor modelo multivariado promovido pelo MLflow (armazenado em <code>models/lstm_petr4_multi</code>). Requer a série histórica de dados OHLCV completos.${requirementMsg}</span>
         `;
         payloadTextarea.value = SAMPLE_PAYLOAD_MULTI;
       }

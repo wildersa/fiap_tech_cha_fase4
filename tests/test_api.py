@@ -55,28 +55,50 @@ def test_model_card_empty():
 
 
 def test_best_run_selection_prioritizes_positive_baseline_gain():
-    high_direction_lower_gain = _run_selection_record(_mock_finished_run(
-        "direction",
-        {"test_lstm_mape_pct": 1.19, "gain_mape_pct": 1.5, "directional_accuracy_pct": 58.9},
-    ))
-    higher_gain = _run_selection_record(_mock_finished_run(
-        "gain",
-        {"test_lstm_mape_pct": 1.19, "gain_mape_pct": 1.6, "directional_accuracy_pct": 57.0},
-    ))
-    negative_gain_low_mape = _run_selection_record(_mock_finished_run(
-        "low_mape",
-        {"test_lstm_mape_pct": 1.07, "gain_mape_pct": -0.2, "directional_accuracy_pct": 53.2},
+    record = _run_selection_record(_mock_finished_run(
+        "formula_gain",
+        {"test_lstm_mape_pct": 1.20, "test_baseline_mape_pct": 1.50, "directional_accuracy_pct": 54.0},
     ))
 
-    best = _select_best_run([high_direction_lower_gain, higher_gain, negative_gain_low_mape])
+    assert record["baseline_gain_pct"] == pytest.approx(20.0)
 
-    assert best["run"].info.run_id == "gain"
+
+def test_best_run_selection_uses_tie_margin_and_tiebreakers():
+    max_gain_worse_direction = _run_selection_record(_mock_finished_run(
+        "max_gain",
+        {"test_lstm_mape_pct": 1.30, "baseline_gain_pct": 2.0, "directional_accuracy_pct": 54.0},
+        {"window_size": "60", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+    tie_higher_direction = _run_selection_record(_mock_finished_run(
+        "tie_direction",
+        {"test_lstm_mape_pct": 1.40, "baseline_gain_pct": 1.9, "directional_accuracy_pct": 57.0},
+        {"window_size": "60", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+    tie_same_direction_lower_mape = _run_selection_record(_mock_finished_run(
+        "tie_mape",
+        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 1.85, "directional_accuracy_pct": 57.0},
+        {"window_size": "40", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+    tie_same_direction_same_mape_smaller_payload = _run_selection_record(_mock_finished_run(
+        "tie_payload",
+        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 1.80, "directional_accuracy_pct": 57.0},
+        {"window_size": "20", "target_mode": "raw_close", "feature_mode": "single"},
+    ))
+
+    best = _select_best_run([
+        max_gain_worse_direction,
+        tie_higher_direction,
+        tie_same_direction_lower_mape,
+        tie_same_direction_same_mape_smaller_payload,
+    ])
+
+    assert best["run"].info.run_id == "tie_payload"
 
 
 def test_best_run_selection_accepts_baseline_gain_alias():
     alias_gain = _run_selection_record(_mock_finished_run(
         "alias_gain",
-        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 2.0, "directional_accuracy_pct": 54.0},
+        {"test_lstm_mape_pct": 1.20, "baseline_gain_pct": 3.0, "directional_accuracy_pct": 54.0},
     ))
     logged_gain = _run_selection_record(_mock_finished_run(
         "logged_gain",
@@ -88,19 +110,19 @@ def test_best_run_selection_accepts_baseline_gain_alias():
     assert best["run"].info.run_id == "alias_gain"
 
 
-def test_best_run_selection_falls_back_to_lowest_mape_without_positive_gain():
-    low_mape = _run_selection_record(_mock_finished_run(
-        "low_mape",
-        {"test_lstm_mape_pct": 1.07, "gain_mape_pct": -0.2, "directional_accuracy_pct": 53.2},
+def test_best_run_selection_returns_none_without_positive_baseline_gain():
+    zero_gain = _run_selection_record(_mock_finished_run(
+        "zero_gain",
+        {"test_lstm_mape_pct": 1.07, "baseline_gain_pct": 0.0, "directional_accuracy_pct": 53.2},
     ))
-    high_mape = _run_selection_record(_mock_finished_run(
-        "high_mape",
-        {"test_lstm_mape_pct": 1.21, "gain_mape_pct": -0.0, "directional_accuracy_pct": 50.8},
+    negative_gain = _run_selection_record(_mock_finished_run(
+        "negative_gain",
+        {"test_lstm_mape_pct": 1.21, "gain_mape_pct": -0.2, "directional_accuracy_pct": 50.8},
     ))
 
-    best = _select_best_run([high_mape, low_mape])
+    best = _select_best_run([negative_gain, zero_gain])
 
-    assert best["run"].info.run_id == "low_mape"
+    assert best is None
 
 
 @patch("src.api.sync_best_model_from_mlflow")

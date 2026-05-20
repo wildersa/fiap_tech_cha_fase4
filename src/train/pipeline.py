@@ -18,6 +18,7 @@ import torch.nn as nn
 import src.train
 from src.model import StockLSTM
 from src.train.config import TrainConfig, resolve_target_column, resolve_feature_columns
+from src.train.champion_selection import MIN_BASELINE_GAIN, build_selection_record, should_promote_candidate
 from src.train.data_prep import set_seed, create_windowed_sequences, make_loader
 from src.train.trainer import regression_metrics, directional_accuracy, predict_numpy
 from src.train.artifacts import write_json, plot_performance
@@ -55,11 +56,13 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         data_source = str(csv_path) if csv_path else "yfinance"
         mlflow.log_param("data_source", data_source)
 
-        df_feat = src.train.add_features(df_raw)
-        
         target_col = resolve_target_column(cfg.target_mode)
         feature_cols = resolve_feature_columns(cfg, target_col)
 
+        # Apenas passamos as colunas necessárias para evitar cálculos ociosos
+        needed_cols = list(set(feature_cols + [target_col]))
+        df_feat = src.train.add_features(df_raw, needed_cols)
+        
         missing_features = [f for f in feature_cols if f not in df_feat.columns]
         if missing_features:
             raise ValueError(f"Colunas de feature ausentes no DataFrame gerado: {missing_features}")
@@ -273,36 +276,42 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         )
 
         # MLOps: Champion/Challenger Promotion Evaluation
+        champion_metadata_path = output_dir / "metadata.json"
+        champion_metrics_path = output_dir / "metrics.json"
+        champion_record = None
+        candidate_record = build_selection_record(metrics, asdict(cfg))
+
+        if champion_metadata_path.exists() and champion_metrics_path.exists():
+            try:
+                champion_metrics = json.loads(champion_metrics_path.read_text(encoding="utf-8"))
+                champion_metadata = json.loads(champion_metadata_path.read_text(encoding="utf-8"))
+                champion_record = build_selection_record(champion_metrics, champion_metadata)
+            except Exception as e:
+                print(f"Falha ao avaliar Champion atual: {e}. Sobrescrevendo...")
+
         is_better = True
-        
+
         if cfg.feature_mode not in AUTO_PROMOTION_FEATURE_MODES:
             eligible_modes = ", ".join(sorted(AUTO_PROMOTION_FEATURE_MODES))
             print(f"[Promocao Rejeitada] O novo modelo possui feature_mode='{cfg.feature_mode}'. Apenas modelos com feature_mode em {{{eligible_modes}}} sao elegiveis para promocao automatica na producao.")
             is_better = False
-        
-        champion_mape = None
-        champion_metadata_path = output_dir / "metadata.json"
-        champion_metrics_path = output_dir / "metrics.json"
-
-        if is_better and champion_metadata_path.exists() and champion_metrics_path.exists():
-            try:
-                champ_metrics = json.loads(champion_metrics_path.read_text(encoding="utf-8"))
-                champion_mape = (
-                    champ_metrics.get("lstm_val", {}).get("mape_pct") or
-                    champ_metrics.get("val_lstm_mape_pct") or
-                    champ_metrics.get("lstm_test", {}).get("mape_pct") or
-                    champ_metrics.get("test_lstm_mape_pct")
+        elif candidate_record is None:
+            print("[Promocao Rejeitada] O novo modelo nao gerou metricas validas para selecao.")
+            is_better = False
+        else:
+            is_better = should_promote_candidate(candidate_record, champion_record)
+            gain_text = f"{candidate_record['baseline_gain_pct']:.2f}%" if candidate_record["baseline_gain_pct"] is not None else "sem ganho positivo"
+            if is_better:
+                print(
+                    f"[Promocao Aprovada] O novo modelo venceu o ranking baseline/direcional "
+                    f"(ganho={gain_text}; direcional={candidate_record['directional_accuracy']:.2f}%; "
+                    f"MAPE={candidate_record['mape_lstm']:.4f}%; linhas={candidate_record['inference_required_rows']}; "
+                    f"janela={candidate_record['window_size']})."
                 )
-                if champion_mape is not None:
-                    val_mape = metrics_val["mape_pct"]
-                    print(f"Modelo atual na producao (Champion) possui Validation MAPE: {champion_mape:.2f}%")
-                    if val_mape < champion_mape:
-                        print(f"[Promocao Aprovada] O novo modelo superou o atual no conjunto de validacao ({val_mape:.2f}% < {champion_mape:.2f}%).")
-                    else:
-                        print(f"[Promocao Rejeitada] O novo modelo nao superou o atual no conjunto de validacao ({val_mape:.2f}% >= {champion_mape:.2f}%).")
-                        is_better = False
-            except Exception as e:
-                print(f"Falha ao avaliar Champion atual: {e}. Sobrescrevendo...")
+            elif candidate_record["baseline_gain_pct"] is None or candidate_record["baseline_gain_pct"] <= MIN_BASELINE_GAIN:
+                print("[Promocao Rejeitada] O novo modelo nao superou o baseline persistente.")
+            else:
+                print("[Promocao Rejeitada] O novo modelo nao venceu o Champion atual pelo ranking baseline/direcional.")
 
         if not is_better:
             save_dir = Path("models/.temp_challenger")
