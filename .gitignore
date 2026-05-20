@@ -159,13 +159,18 @@ data/
 !data/README.md
 !data/.gitkeep
 
-# Project specific - Models & Scalers
-src/models/
-models/*
+# Project specific - Model artifacts
+# Git deve manter apenas metadados leves. Binários/checkpoints ficam fora do repositório.
+models/**
+!models/
 !models/.gitkeep
-!models/lstm_petr4/
-models/lstm_petr4/*
-!models/lstm_petr4/.gitkeep
+!models/**/
+!models/**/.gitkeep
+!models/**/metadata.json
+!models/**/feature_config.json
+!models/**/README.md
+
+# Large model/checkpoint/scaler formats
 *.pt
 *.pth
 *.pkl
@@ -182,8 +187,9 @@ scripts/
 
 sample_request.json
 
-# MLflow runs
+# MLflow runs/artifacts
 mlruns/
+mlartifacts/
 
 # Project Janitor
 .archive/
