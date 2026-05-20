@@ -97,9 +97,8 @@ flowchart LR
     subgraph Decisão & Governança (MLOps)
         T --> CVC{Ganho contra baseline > 0?}
         CVC -- Sim --> RANK[Ranking: ganho, acurácia direcional, MAPE e payload]
-        CVC -- Não --> FB[Fallback: menor MAPE]
+        CVC -- Não --> REJ[Promoção Rejeitada: Mantém incumbente]
         RANK --> PM[Sincroniza melhor run para models/]
-        FB --> PM
     end
 
     subgraph API Gateway / FastAPI (Endpoints Alimentados)
@@ -175,8 +174,8 @@ A regra de escolha prioriza utilidade contra o baseline:
 1. O modelo precisa superar o baseline persistente (ganho > 0).
 2. A seleção prioriza o maior ganho percentual em relação ao baseline. Existe uma **margem de empate de 0.3 ponto percentual**.
 3. Modelos dentro dessa margem de empate (0.3%) são desempatados priorizando: **maior acurácia direcional**, depois **menor MAPE** e, por fim, **menor payload de inferência** (menos features).
-4. Se nenhuma run superar o baseline, escolhe-se o menor MAPE disponível como fallback.
-3. No modo somente inferência, essa sincronização não acontece: a API usa exatamente os artefatos apontados por `MODEL_DIR` e `MODEL_DIR_MULTI`.
+4. Se nenhuma run superar o baseline, nenhuma promoção automática é realizada (o modelo atual/incumbente é mantido).
+5. No modo somente inferência, essa sincronização não acontece: a API usa exatamente os artefatos apontados por `MODEL_DIR` e `MODEL_DIR_MULTI`.
 
 ### Segurança contra Execução Remota de Código (RCE)
 Para contornar as vulnerabilidades do carregador padrão do PyTorch (`torch.load` baseado no formato pickle inseguro), adotamos:

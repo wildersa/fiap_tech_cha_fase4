@@ -73,8 +73,9 @@ def test_directional_accuracy():
     acc_wrong = directional_accuracy(y_true, y_pred_wrong, last_close)
     assert acc_wrong == 0.0
 
+@patch("src.train.pipeline.should_promote_candidate", return_value=True)
 @patch("src.train.load_yfinance")
-def test_run_training_pipeline_minimal(mock_load_yf, synthetic_df, temp_model_dir):
+def test_run_training_pipeline_minimal(mock_load_yf, mock_should_promote, synthetic_df, temp_model_dir):
     mock_load_yf.return_value = synthetic_df
 
     cfg = TrainConfig(
@@ -266,8 +267,9 @@ def test_resolve_feature_columns_invalid_feature():
         resolve_feature_columns(cfg, "Log_Return")
 
 
+@patch("src.train.pipeline.should_promote_candidate", return_value=True)
 @patch("src.train.load_yfinance")
-def test_metadata_and_preprocessor_preservation(mock_load_yf, synthetic_df, temp_model_dir):
+def test_metadata_and_preprocessor_preservation(mock_load_yf, mock_should_promote, synthetic_df, temp_model_dir):
     import json
     import joblib
 
