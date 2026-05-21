@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.tune import parse_args, main
+from scripts.tune import parse_args, main
 
 
 def test_parse_args():
@@ -11,7 +11,7 @@ def test_parse_args():
         assert args.max_epochs == 5
 
 
-@patch("src.tune.run_training_pipeline")
+@patch("scripts.tune.run_training_pipeline")
 def test_tune_main_flow(mock_run_pipeline):
     # Mock run_training_pipeline para retornar métricas fictícias
     mock_run_pipeline.return_value = {

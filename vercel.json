@@ -1,0 +1,26 @@
+{
+  "builds": [
+    {
+      "src": "src/api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/src/api.py"
+    }
+  ],
+  "functions": {
+    "src/api.py": {
+      "includeFiles": [
+        "models/**/*.onnx",
+        "models/**/*.onnx.data",
+        "models/**/*.joblib",
+        "models/**/*.json",
+        "models/**/*.png",
+        "src/**"
+      ]
+    }
+  }
+}

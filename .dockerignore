@@ -12,5 +12,12 @@ mlflow.db
 *.pyd
 *.log
 
-# Intencionalmente NAO ignore models/.
-# O fluxo de inferencia empacotada precisa copiar os artefatos prontos para dentro da imagem.
+# Evita que a pasta de experimentos (muito pesada) seja enviada no build context
+models/experiments/*
+# Evita pesos do PyTorch (apenas os .onnx e .joblib sao necessarios em prod)
+models/**/*.pt
+models/**/*.safetensors
+models/**/*.pth
+
+# Intencionalmente NAO ignore o resto da models/.
+# O fluxo de inferencia empacotada precisa copiar os artefatos .onnx prontos para dentro da imagem.

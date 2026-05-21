@@ -263,10 +263,13 @@ def test_model_champion_returns_single_and_multi_champions(mock_refresh, tmp_pat
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["type"] == "multi"
     assert payload["selected_model_type"] == "multi"
     assert payload["run_id"] == "multi-run"
+    assert payload["champions"]["single"]["type"] == "single"
     assert payload["champions"]["single"]["has_champion"] is True
     assert payload["champions"]["single"]["run_id"] == "single-run"
+    assert payload["champions"]["multi"]["type"] == "multi"
     assert payload["champions"]["multi"]["has_champion"] is True
     assert payload["champions"]["multi"]["run_id"] == "multi-run"
 

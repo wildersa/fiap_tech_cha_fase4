@@ -36,7 +36,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
-from prometheus_client import Gauge, Counter, REGISTRY
+from prometheus_client import Gauge, Counter, REGISTRY, Info
 from pydantic import BaseModel, Field
 from src.train.champion_selection import (
     build_selection_record as build_champion_selection_record,
@@ -49,7 +49,10 @@ PROM_CPU_USAGE = Gauge('api_cpu_usage_percent', 'Uso de CPU do processo em porce
 PROM_MEMORY_USAGE = Gauge('api_memory_usage_bytes', 'Uso de memoria do processo em bytes')
 PROM_SYSTEM_MEMORY = Gauge('api_system_memory_percent', 'Uso de memoria do sistema em porcentagem')
 PROM_LAST_LATENCY = Gauge('api_last_latency_ms', 'Tempo de resposta da ultima requisicao em ms')
-PROM_TOTAL_ERRORS = Counter('api_errors_total', 'Contador acumulado de erros na API')
+PROM_PREDICTION_REQUESTS = Counter('lstm_prediction_requests_total', 'Total de requisicoes de predicao LSTM')
+PROM_PREDICTION_DURATION = Gauge('lstm_prediction_duration_seconds', 'Tempo gasto na ultima predicao LSTM em segundos')
+PROM_TRAINING_DURATION = Gauge('lstm_training_duration_seconds', 'Tempo gasto no ultimo treino em segundos')
+PROM_ACTIVE_MODEL_INFO = Info('lstm_active_model_info', 'Informacoes sobre o modelo LSTM ativo')
 
 ENABLE_TRAINING_API = os.getenv("ENABLE_TRAINING_API", "true").lower() == "true"
 if ENABLE_TRAINING_API:
@@ -81,21 +84,6 @@ MODEL_ARTIFACT_FILES = [
     "model_performance.png",
 ]
 START_TIME = time.time()
-APP_METRICS = {
-    "total_requests": 0,
-    "total_latency_sec": 0.0,
-    "last_latency_sec": 0.0,
-    "total_errors": 0,
-    "prediction_requests": 0,
-    "last_prediction": None,
-    "last_training_time_sec": None,
-    "total_inference_time_sec": 0.0,
-    "inference_requests": 0,
-    "last_inference_time_sec": 0.0,
-    "last_predict_latency_sec": None,
-    "last_predict_multi_latency_sec": None,
-}
-TELEMETRY_HISTORY = deque(maxlen=100)
 
 
 def runtime_mode() -> str:
@@ -418,12 +406,14 @@ def _current_champion_record() -> dict | None:
 def _selection_payload(record: dict | None, default_model_type: str = "single") -> dict:
     if record is None:
         return {
+            "type": default_model_type,
             "selected_model_type": default_model_type,
             "has_champion": False,
             "reason": "Nenhum modelo elegivel superou o baseline em MAPE.",
         }
 
     return {
+        "type": record.get("model_type", "single"),
         "selected_model_type": record.get("model_type", "single"),
         "has_champion": True,
         "run_id": record.get("run_id"),
@@ -891,30 +881,16 @@ async def collect_app_metrics(request, call_next):
 
     start = time.time()
     response = None
-    has_error = False
-    status_code = 200
 
     try:
         response = await call_next(request)
-        status_code = response.status_code
         return response
-    except Exception:
-        has_error = True
-        status_code = 500
-        raise
     finally:
         latency = time.time() - start
-        APP_METRICS["total_requests"] += 1
-        APP_METRICS["total_latency_sec"] += latency
-        APP_METRICS["last_latency_sec"] = latency
-        if has_error or status_code >= 400:
-            APP_METRICS["total_errors"] += 1
-            PROM_TOTAL_ERRORS.inc()
             
         latency_ms = round(latency * 1000, 2)
         cpu = psutil.cpu_percent()
         mem_bytes = psutil.Process().memory_info().rss
-        mem_mb = round(mem_bytes / (1024 * 1024), 2)
         sys_mem = psutil.virtual_memory().percent
 
         # Atualiza as métricas oficiais do Prometheus registradas no processo
@@ -923,15 +899,6 @@ async def collect_app_metrics(request, call_next):
         PROM_SYSTEM_MEMORY.set(sys_mem)
         PROM_LAST_LATENCY.set(latency_ms)
 
-        snapshot = {
-            "timestamp": time.strftime("%H:%M:%S"),
-            "latency_ms": round(APP_METRICS["last_inference_time_sec"] * 1000, 2),
-            "predict_latency_ms": round(APP_METRICS["last_predict_latency_sec"] * 1000, 2) if APP_METRICS["last_predict_latency_sec"] is not None else None,
-            "predict_multi_latency_ms": round(APP_METRICS["last_predict_multi_latency_sec"] * 1000, 2) if APP_METRICS["last_predict_multi_latency_sec"] is not None else None,
-            "cpu_percent": cpu,
-            "memory_mb": mem_mb
-        }
-        TELEMETRY_HISTORY.append(snapshot)
         if response:
             response.headers["X-Process-Time"] = f"{latency:.6f}"
 
@@ -1037,34 +1004,37 @@ def model_card_payload(model_dir: Path) -> dict:
 
 
 def telemetry_payload() -> dict:
-    total_requests = APP_METRICS["total_requests"]
-    avg_latency_ms = (APP_METRICS["total_latency_sec"] / total_requests * 1000) if total_requests else 0.0
-
     cpu = REGISTRY.get_sample_value('api_cpu_usage_percent') or 0.0
     mem_bytes = REGISTRY.get_sample_value('api_memory_usage_bytes') or 0.0
     sys_mem = REGISTRY.get_sample_value('api_system_memory_percent') or 0.0
     last_lat = REGISTRY.get_sample_value('api_last_latency_ms') or 0.0
-    errs = REGISTRY.get_sample_value('api_errors_total_total') or REGISTRY.get_sample_value('api_errors_total') or 0.0
 
-    avg_inference_ms = (APP_METRICS["total_inference_time_sec"] / APP_METRICS["inference_requests"] * 1000) if APP_METRICS["inference_requests"] else 0.0
-    last_inference_ms = APP_METRICS["last_inference_time_sec"] * 1000
+    pred_reqs = REGISTRY.get_sample_value('lstm_prediction_requests_total') or 0.0
+    pred_dur = REGISTRY.get_sample_value('lstm_prediction_duration_seconds') or 0.0
+    train_dur = REGISTRY.get_sample_value('lstm_training_duration_seconds') or 0.0
+
+    # Tenta obter algumas métricas HTTP do Instrumentator (pode variar pelos labels)
+    # Somar todas as ocorrências de requisições se houver
+    http_total = sum(
+        metric.samples[0].value 
+        for metric in REGISTRY.collect() 
+        if metric.name == 'http_requests_total'
+        for sample in metric.samples
+    ) if any(m.name == 'http_requests_total' for m in REGISTRY.collect()) else 0
 
     return {
         "uptime_seconds": round(time.time() - START_TIME, 2),
         "api": {
-            "total_requests": total_requests,
-            "prediction_requests": APP_METRICS["prediction_requests"],
-            "total_errors": int(errs),
-            "average_response_time_ms": round(avg_latency_ms, 2),
+            "total_requests": int(http_total),
+            "prediction_requests": int(pred_reqs),
             "last_response_time_ms": round(last_lat, 2),
         },
         "inference": {
-            "average_time_ms": round(avg_inference_ms, 2),
-            "last_time_ms": round(last_inference_ms, 2),
+            "last_time_ms": round(pred_dur * 1000, 2),
         },
         "training": {
             "enabled": ENABLE_TRAINING_API,
-            "last_time_sec": round(APP_METRICS["last_training_time_sec"], 2) if APP_METRICS.get("last_training_time_sec") is not None else None,
+            "last_time_sec": round(train_dur, 2) if train_dur > 0 else None,
         },
         "resources": {
             "cpu_percent": cpu,
@@ -1075,8 +1045,7 @@ def telemetry_payload() -> dict:
             "model_dir": str(MODEL_DIR),
             "loaded": (MODEL_DIR / "model.onnx").exists() and (MODEL_DIR / "preprocessor.joblib").exists(),
         },
-        "last_prediction": APP_METRICS["last_prediction"],
-        "history": list(TELEMETRY_HISTORY),
+        "history": [],
     }
 
 
@@ -1231,7 +1200,7 @@ def train_model(req: TrainRequest):
         t0 = time.time()
         results = run_training_pipeline(cfg)
         training_time = time.time() - t0
-        APP_METRICS["last_training_time_sec"] = training_time
+        PROM_TRAINING_DURATION.set(training_time)
         refresh_models_for_runtime(force_best=True)
         
         # Invalida o cache para forçar recarregamento do novo campeão
@@ -1266,10 +1235,8 @@ def predict(request: PredictRequest):
         t0 = time.time()
         result = predict_next(request.closes)
         inference_time = time.time() - t0
-        APP_METRICS["last_inference_time_sec"] = inference_time
-        APP_METRICS["last_predict_latency_sec"] = inference_time
-        APP_METRICS["total_inference_time_sec"] += inference_time
-        APP_METRICS["inference_requests"] += 1
+        PROM_PREDICTION_DURATION.set(inference_time)
+        PROM_PREDICTION_REQUESTS.inc()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1286,8 +1253,7 @@ def predict(request: PredictRequest):
         "baseline_close": result["last_close"],
         "model_version": "v1",
     }
-    APP_METRICS["prediction_requests"] += 1
-    APP_METRICS["last_prediction"] = response
+    PROM_ACTIVE_MODEL_INFO.info({'type': 'single', 'last_close': str(result["predicted_close"])})
     return response
 
 
@@ -1308,10 +1274,8 @@ def predict_ohlcv(request: PredictOhlcvRequest):
         rows_dict = [row.model_dump() for row in request.rows]
         result = predict_next_ohlcv(rows_dict)
         inference_time = time.time() - t0
-        APP_METRICS["last_inference_time_sec"] = inference_time
-        APP_METRICS["last_predict_multi_latency_sec"] = inference_time
-        APP_METRICS["total_inference_time_sec"] += inference_time
-        APP_METRICS["inference_requests"] += 1
+        PROM_PREDICTION_DURATION.set(inference_time)
+        PROM_PREDICTION_REQUESTS.inc()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1328,8 +1292,7 @@ def predict_ohlcv(request: PredictOhlcvRequest):
         "baseline_close": result["last_close"],
         "model_version": "v1",
     }
-    APP_METRICS["prediction_requests"] += 1
-    APP_METRICS["last_prediction"] = response
+    PROM_ACTIVE_MODEL_INFO.info({'type': 'multi', 'last_close': str(result["predicted_close"])})
     return response
 
 def render_frontend_dashboard() -> HTMLResponse:

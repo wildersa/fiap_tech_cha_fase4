@@ -160,21 +160,35 @@ data/
 !data/.gitkeep
 
 # Project specific - Model artifacts
-# Git deve manter apenas artefatos finais de inferencia em formatos portaveis.
-# Checkpoints, scalers e metadados de experimentos ficam fora do repositorio.
-models/**
-!models/
+# Git deve manter APENAS os artefatos dos modelos campeões (lstm_petr4 e lstm_petr4_multi).
+# Outros modelos treinados dinamicamente no container DEVEM ser ignorados.
+models/*
 !models/.gitkeep
-!models/**/
-!models/**/*.onnx
-!models/**/*.safetensors
 
-# Large model/checkpoint/scaler formats
-*.pt
-*.pth
-*.pkl
-*.h5
-*.joblib
+# Libera APENAS as pastas dos modelos campeões oficiais
+!models/lstm_petr4/
+!models/lstm_petr4_multi/
+
+# Libera os artefatos essenciais de inferência apenas dentro das pastas permitidas acima
+!models/lstm_petr4/*.onnx
+!models/lstm_petr4/*.joblib
+!models/lstm_petr4/*.json
+!models/lstm_petr4/*.png
+!models/lstm_petr4/*.csv
+
+!models/lstm_petr4_multi/*.onnx
+!models/lstm_petr4_multi/*.joblib
+!models/lstm_petr4_multi/*.json
+!models/lstm_petr4_multi/*.png
+!models/lstm_petr4_multi/*.csv
+
+# Ignora explicitamente pesos do PyTorch dentro das pastas permitidas
+models/lstm_petr4/*.pt
+models/lstm_petr4/*.safetensors
+models/lstm_petr4/*.pth
+models/lstm_petr4_multi/*.pt
+models/lstm_petr4_multi/*.safetensors
+models/lstm_petr4_multi/*.pth
 
 # Logs
 logs/
@@ -195,3 +209,7 @@ mlartifacts/
 
 .gemini_security/
 models/experiments/*
+# Ignora arquivos grandes ou temporarios especificos nos modelos, se houver
+models/**/*.pt
+models/**/*.pth
+models/**/*.h5

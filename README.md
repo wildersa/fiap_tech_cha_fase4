@@ -20,7 +20,8 @@ src/
     data_prep.py              # Pré-processamento, scalers configuráveis e janelamento de dados.
     trainer.py                # Loop de validação e métricas do modelo (MAE, RMSE, MAPE).
     artifacts.py              # Funções de exportação de plots e metadados.
-    pipeline.py               # Orquestrador principal do pipeline e CLI de treino.
+    pipeline.py               # Orquestrador principal do pipeline de treino.
+  train_cli.py                # CLI dedicada para treino com saída operacional e resumo JSON.
   data_loader.py              # Download de dados históricos via yfinance ou leitura de CSV.
   model.py                    # Definição da rede neural LSTM em PyTorch.
 models/                       # Modelos campeões promovidos para uso na API de inferência:
@@ -32,6 +33,11 @@ models/                       # Modelos campeões promovidos para uso na API de 
 
 ## Instalação e Execução
 
+Eu construi o portal com dois modos diferentes de instalação e execução, otimizando para casos de uso distintos:
+
+- Modo de Produção (Apenas Inferência): Focado em baixo consumo de memória, inicialização imediata e segurança. Utiliza o motor ONNX Runtime para inferência direta, eliminando a dependência do PyTorch e do MLflow em produção.
+- Modo de Treinamento e Desenvolvimento: Focado em cientistas de dados para experimentação, novos treinamentos, busca de hiperparâmetros e auditoria de modelos no MLflow. Instala dependências robustas como PyTorch, MLflow e Matplotlib.
+
 ### 1. Modo de Produção (Apenas Inferência)
 
 Focado em baixo consumo de memória, inicialização imediata e segurança. Utiliza o motor **ONNX Runtime** para inferência direta, eliminando a dependência do PyTorch e do MLflow em produção.
@@ -42,6 +48,10 @@ Focado em baixo consumo de memória, inicialização imediata e segurança. Util
   poetry install --only main
   ```
 
+- **Configuração de variáveis de ambiente**:
+  - `ENABLE_TRAINING_API=false` para desabilitar os endpoints de treino e promoção automática.
+  - `MODEL_DIR` e `MODEL_DIR_MULTI` apontando para os artefatos ONNX empacotados do modelo univariado e multivariado, respectivamente.
+
 - **Executar a API localmente**:
 
   ```bash
@@ -50,49 +60,27 @@ Focado em baixo consumo de memória, inicialização imediata e segurança. Util
 
 - **Dashboard Web**: Acesse `http://127.0.0.1:8000/dashboard` para interagir com o modelo, visualizar a telemetria em tempo real e consultar a ficha técnica.
 
-#### Endpoints da API (Swagger / OpenAPI)
+#### Deploy Serverless (Vercel)
 
-A documentação interativa completa está disponível em `http://127.0.0.1:8000/docs` (Swagger) ou `http://127.0.0.1:8000/redoc`. Os endpoints são divididos nas seguintes categorias:
+O projeto possui um arquivo `vercel.json` configurado para deploy imediato na Vercel.
 
-##### Inferência/Predict
+Para realizar o deploy:
 
-- `POST /predict`: Predição univariada baseada em preços de fechamento anteriores. Consome o modelo de `models/lstm_petr4`.
-- `POST /predict/ohlcv`: Predição multivariada dinâmica baseada em dados OHLCV completos. Consome o modelo de `models/lstm_petr4_multi`.
-
-##### Treinamento & MLOps
-
-- `POST /train`: Dispara síncronamente o pipeline de treinamento e registra os artefatos no MLflow. Disponível apenas em modo dev/train.
-- `GET /runs`: Retorna o histórico de todas as execuções de treinamento gravadas no MLflow. Disponível apenas em modo dev/train.
-- `DELETE /runs/{run_id}`: Exclui logicamente uma run específica no MLflow. Disponível apenas em modo dev/train.
-
-##### Monitoramento, Diagnóstico & Interface
-
-- `GET /dashboard`: Renderiza a interface gráfica do painel de controle.
-- `GET /health`: Liveness/readiness, retornando o status operacional e pasta de modelos.
-- `GET /model-card`: Retorna a ficha técnica detalhada do modelo ativo (`?type=single`, `?type=multi` ou `?type=best`).
-- `GET /model-champion`: Retorna o campeão global atual pela regra Champion/Challenger.
-- `GET /model-image`: Fornece a imagem PNG contendo o gráfico de perda (Loss) e de performance offline do modelo ativo.
-- `GET /telemetry`: Retorna métricas brutas de CPU, memória RAM e latência de requisições. Endpoint simples usado para capturar dados do metrics e guardar em memória a cada interação com o portal.
-- `GET /metrics`: Endpoint de scraping do Prometheus exposto pelo instrumentador de APIs.
+1. Conecte o repositório na sua conta Vercel.
+2. Nenhuma variável de ambiente adicional é necessária para a inferência, pois o código assume os diretórios padrão.
 
 #### Build da imagem Docker (Produção / Inferência Empacotada)
 
-A imagem de produção nasce em `ENABLE_TRAINING_API=false` e copia os artefatos de `MODEL_BUNDLE_DIR` para dentro de `/app/models`. Esse é o fluxo para deploy imutável: a API não consulta MLflow e usa apenas o modelo já empacotado.
+A imagem de produção copia os artefatos de `MODEL_BUNDLE_DIR` para dentro de `/app/models`. Esse é o fluxo para deploy imutável: a API não consulta MLflow e usa apenas o modelo já empacotado.
 
 ```bash
-docker build \
-  --build-arg ENV=prod \
-  --build-arg MODEL_BUNDLE_DIR=models \
-  --build-arg ENABLE_TRAINING_API=false \
-  --build-arg MODEL_DIR=/app/models/lstm_petr4 \
-  --build-arg MODEL_DIR_MULTI=/app/models/lstm_petr4_multi \
-  -t stock-api:prod .
+docker build --build-arg ENV=prod --build-arg MODEL_BUNDLE_DIR=models --build-arg ENABLE_TRAINING_API=false --build-arg MODEL_DIR=/app/models/lstm_petr4 --build-arg MODEL_DIR_MULTI=/app/models/lstm_petr4_multi -t tech-challenge-api:prod .
 ```
 
 Para executar:
 
 ```bash
-docker run --rm -p 8000:8000 stock-api:prod
+docker run --rm -p 8000:8000 tech-challenge-api:prod
 ```
 
 ### 2. Modo de Treinamento e Desenvolvimento
@@ -104,11 +92,11 @@ Focado em cientistas de dados para experimentação, novos treinamentos, busca d
 ```mermaid
 flowchart LR
     A[Disparo: /train ou CLI] --> B[yfinance: Coleta Histórica]
-    B --> C[Eng. de Features: Dinâmico via feature_mode]
-    C --> D[Divisão de Dados & Normalização Configurável]
+    B --> C[Eng. de Features: Dinamico via feature_mode]
+    C --> D[Divisao de Dados e Normalizacao Configuravel]
     D --> E[Treino PyTorch: LSTM com Early Stopping]
-    E --> F[Validação Offline: MAPE, MAE, RMSE]
-    F --> G[MLflow: Log de Runs, Hiperparâmetros e Métricas]
+    E --> F[Validacao Offline: MAPE, MAE, RMSE]
+    F --> G[MLflow: Log de Runs, Hiperparametros e Metricas]
 ```
 
 #### 2. Ciclo MLOps & Arquitetura Macro (Seleção e Endpoints)
@@ -118,7 +106,7 @@ flowchart LR
     subgraph train_pipeline["Pipeline de Treinamento"]
         T[Nova run candidata]
     end
-    
+
     subgraph mlops_decision["Decisao e Governanca MLOps"]
         T --> CVC{Supera baseline em MAPE?}
         CVC -- Sim --> RANK[Ranking: ganho, acuracia direcional, MAPE e custo de inferencia]
@@ -132,7 +120,7 @@ flowchart LR
         CC --> MC["Ficha Tecnica e Imagem (/model-card e /model-image)"]
         CC --> DB["Interface Web (/dashboard)"]
     end
-    
+
     style CVC fill:#f9f,stroke:#333,stroke-width:2px
     style PM fill:#8f8,stroke:#333,stroke-width:2px
 ```
@@ -143,39 +131,41 @@ flowchart LR
   poetry install
   ```
 
-- **Treinamento via CLI**:
+- **Treinamento via CLI (execução local)**:
 
   ```bash
-  $env:PYTHONPATH="." ; poetry run python src/train/pipeline.py --symbol PETR4.SA --max-epochs 150 --feature-mode single
+  poetry run python src/train_cli.py --symbol PETR4.SA --max-epochs 150 --feature-mode single
   ```
 
-  O parâmetro `--end-date`, quando informado, representa a última data desejada no dataset de treino. O pipeline registra nos metadados e no MLflow a data solicitada, a data real disponível no dataset e as janelas efetivas de treino, validação e teste.
-- **Ajuste de Hiperparâmetros (Hyperparameter Tuning)**:
+  Esse modo roda o pipeline diretamente no terminal. Ele escreve logs no stdout, registra a run no MLflow, salva artefatos em disco e imprime um resumo final com resposta JSON no próprio terminal.
 
-  ```bash
-  $env:PYTHONPATH="." ; poetry run python src/tune.py --n-trials 5 --max-epochs 30
-  ```
+- **Treinamento via API (resposta estruturada)**:
 
-- **Visualização de Experimentos (MLflow UI)**:
-
-  ```bash
-  poetry run mlflow ui --backend-store-uri sqlite:///mlflow.db
-  ```
-
-  Acesse `http://127.0.0.1:5000` para comparar execuções e visualizar as curvas de perda (loss).
-- **Habilitar Treino no Dashboard**:
-  Defina a variável `ENABLE_TRAINING_API=true` para liberar o disparo de novos treinos diretamente pela interface gráfica:
+  Primeiro suba a API com treino habilitado:
 
   ```bash
   $env:ENABLE_TRAINING_API="true" ; poetry run uvicorn src.api:app --reload
   ```
 
-  Nesse modo dev/train, `/predict` e `/model-card` sincronizam automaticamente o melhor modelo elegível do MLflow para `MODEL_DIR`/`MODEL_DIR_MULTI` antes de carregar os artefatos.
+  Depois dispare o treino por HTTP:
+
+  ```powershell
+  Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/train" -ContentType "application/json" -Body '{
+    "symbol": "PETR4.SA",
+    "max_epochs": 150,
+    "feature_mode": "single"
+  }'
+  ```
+
+  Esse modo retorna JSON com `status`, `metrics`, `output_dir` e `message`, além de atualizar o melhor modelo elegível quando a regra Champion/Challenger aprovar a promoção.
+
+  O parâmetro `end_date`, quando informado, representa a última data desejada no dataset de treino. O pipeline registra nos metadados e no MLflow a data solicitada, a data real disponível no dataset e as janelas efetivas de treino, validação e teste.
+
 - **Somente Inferência**:
   Defina `ENABLE_TRAINING_API=false` e aponte `MODEL_DIR`/`MODEL_DIR_MULTI` para os artefatos empacotados. Nesse modo a API não consulta MLflow, não promove modelos e usa exatamente o modelo apontado:
 
   ```bash
-  $env:ENABLE_TRAINING_API="false" ; $env:MODEL_DIR="models/lstm_petr4" ; poetry run uvicorn src.api:app
+  $env:ENABLE_TRAINING_API="false" ; $env:MODEL_DIR="models/lstm_petr4" ; $env:MODEL_DIR_MULTI="models/lstm_petr4_multi" ; poetry run uvicorn src.api:app
   ```
 
 - **Build da imagem Docker (Treino / Desenvolvimento)**:
@@ -183,26 +173,45 @@ flowchart LR
   - **Opção 1: Treino em CPU (Leve)** (Recomendado para testes locais sem GPU dedicada):
 
       ```bash
-      docker build \
-        --build-arg ENV=dev-cpu \
-        --build-arg ENABLE_TRAINING_API=true \
-        --build-arg MODEL_DIR=/workspace/models/lstm_petr4 \
-        --build-arg MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi \
-        -t stock-api:dev-cpu .
+      docker build --build-arg ENV=dev-cpu --build-arg ENABLE_TRAINING_API=true --build-arg MODEL_DIR=/workspace/models/lstm_petr4 --build-arg MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi -t tech-challenge-api:dev-cpu .
 
-      docker run --rm -p 8000:8000 \
-        -e ENABLE_TRAINING_API=true \
-        -e MODEL_DIR=/workspace/models/lstm_petr4 \
-        -e MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi \
-        -v "$PWD/models:/workspace/models" \
-        stock-api:dev-cpu
+      docker run --rm -p 8000:8000 -e ENABLE_TRAINING_API=true -e MODEL_DIR=/workspace/models/lstm_petr4 -e MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi -v "$PWD/models:/workspace/models" tech-challenge-api:dev-cpu
       ```
 
   - **Opção 2: Treino em GPU (CUDA - Pesado)** (Recomendado para treinamento com aceleração de hardware):
 
+      Para viabilizar a compilação e evitar baixar gigabytes via pip durante o build, utilizamos a imagem oficial do PyTorch pré-compilada com CUDA como base:
+
       ```bash
-      docker build --build-arg ENV=dev-cuda --build-arg ENABLE_TRAINING_API=true -t stock-api:dev-cuda .
+      docker build --build-arg BASE_IMAGE=pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime --build-arg ENV=dev-cuda --build-arg ENABLE_TRAINING_API=true -t tech-challenge-api:dev-cuda .
       ```
+
+### Endpoints da API (Swagger / OpenAPI)
+
+A documentação interativa completa está disponível em `http://127.0.0.1:8000/docs` (Swagger) ou `http://127.0.0.1:8000/redoc`. Os endpoints são divididos nas seguintes categorias:
+
+#### Inferência / Predict
+
+- `POST /predict`: Predição univariada baseada em preços de fechamento anteriores. Consome o modelo de `models/lstm_petr4`.
+- `POST /predict/ohlcv`: Predição multivariada dinâmica baseada em dados OHLCV completos. Consome o modelo de `models/lstm_petr4_multi`.
+
+#### Treinamento & MLOps (SOMENTE DISPONÍVEL EM MODO DEV/TRAIN)
+
+- `POST /train`: Dispara síncronamente o pipeline de treinamento e registra os artefatos no MLflow. Disponível apenas em modo dev/train.
+- `GET /runs`: Retorna o histórico de todas as execuções de treinamento gravadas no MLflow. Disponível apenas em modo dev/train.
+- `DELETE /runs/{run_id}`: Exclui logicamente uma run específica no MLflow. Disponível apenas em modo dev/train.
+
+#### Monitoramento, Diagnóstico & Interface
+
+- `GET /dashboard`: Renderiza a interface gráfica do painel de controle.
+- `GET /health`: Liveness/readiness, retornando o status operacional e pasta de modelos.
+- `GET /model-card`: Retorna a ficha técnica detalhada do modelo ativo (`?type=single`, `?type=multi` ou `?type=best`).
+- `GET /model-champion`: Retorna os campeões atuais por tipo (`single` e `multi`) e o campeão global usado por `type=best`, conforme a regra Champion/Challenger.
+- `GET /model-image`: Fornece a imagem PNG contendo o gráfico de perda (Loss) e de performance offline do modelo ativo.
+- `GET /telemetry`: Retorna métricas brutas de CPU, memória RAM e latência de requisições. Endpoint simples usado para capturar dados do metrics e guardar em memória a cada interação com o portal. Usado para alimentar os gráficos de telemetria do dashboard sem necessidade de configuração externa de Prometheus/Grafana.
+- `GET /metrics`: Endpoint de scraping do Prometheus exposto pelo instrumentador de APIs.
+
+> Tanto `/telemetry` quanto o endpoint `/metrics` são alimentados pela mesma instrumentação interna do `Prometheus`. O `/telemetry` organiza esses dados em JSON para o dashboard, enquanto o `/metrics` expõe no padrão Prometheus.
 
 ---
 
@@ -210,7 +219,7 @@ flowchart LR
 
 ### Seleção do Melhor Modelo
 
-No modo dev/train, a API sincroniza o melhor modelo elegível do MLflow antes de responder `/predict`, `/predict/ohlcv`, `/model-card` e `/model-image`.
+No modo dev/train, a API sincroniza os melhores modelos elegíveis do MLflow antes de responder `/predict`, `/predict/ohlcv`, `/model-card`, `/model-champion` e `/model-image`.
 
 A regra de escolha prioriza utilidade contra o baseline:
 
@@ -243,7 +252,7 @@ Para avaliar e comparar a performance dos modelos de previsão, definimos uma hi
 - **Métrica Principal (Decisão)**
   - **Ganho vs Baseline**: Medida de evolução percentual do modelo contra um baseline persistente, onde a previsão de `t+1` é o valor real de `t`. Runs com ganho positivo têm prioridade na seleção automática.
 - **Métricas de Apoio (Acompanhamento)**
-  - **MAPE (Mean Absolute Percentage Error)**: Erro percentual médio absoluto. É usado como desempate e como fallback quando nenhum modelo supera o baseline.
+  - **MAPE (Mean Absolute Percentage Error)**: Erro percentual médio absoluto. É usado como critério de entrada contra o baseline e como desempate depois da acurácia direcional.
   - **MAE (Mean Absolute Error)**: Erro médio absoluto expressando os desvios diretamente na escala de preço do ativo (em R$).
   - **RMSE (Root Mean Squared Error)**: Raiz do erro quadrático médio, utilizada para monitorar a variância dos desvios, penalizando de forma mais rigorosa erros de grande magnitude (outliers).
 - **Métrica Complementar (Direção)**
@@ -273,7 +282,7 @@ O painel de treino fica disponível apenas em modo dev/train. Ele dispara treina
 
 ### Telemetria do Sistema
 
-A tela de telemetria coleta dados do endpoint `/metrics` e exibe informações sobre a latência das requisições, o uso de CPU e memória RAM, e o número de requisições por endpoint.
+A tela de telemetria consome o endpoint `/telemetry` e exibe informações sobre a latência das requisições, o uso de CPU e memória RAM, e o número de requisições por endpoint.
 O intuito dessa tela é demonstrar a capacidade de monitoramento em tempo real da aplicação, facilitando a identificação de gargalos e problemas de performance, sem a necessidade de instalação de ferramentas externas como o Prometheus ou Grafana.
 
 ---
@@ -283,6 +292,7 @@ O intuito dessa tela é demonstrar a capacidade de monitoramento em tempo real d
 - [Stock Prediction Using the LSTM Algorithm with Deep Learning Method](https://etasr.com/index.php/ETASR/article/view/12685/5689)
 - [A Comprehensive Study on Stock Price Prediction using LSTM](https://arxiv.org/abs/2303.02223)
 - [Kaggle Gold Price Prediction](https://www.kaggle.com/code/farzadnekouei/gold-price-prediction-lstm-96-accuracy)
+- Aulas =)
 
 ---
 *Projeto desenvolvido para o Tech Challenge FIAP.*

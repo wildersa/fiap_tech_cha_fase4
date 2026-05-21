@@ -11,10 +11,12 @@ from importlib import import_module
 from typing import Any
 
 from src.train.config import TrainConfig, resolve_target_column, resolve_feature_columns
-from src.data_loader import add_features, load_csv, load_yfinance
 
 
 _LAZY_EXPORTS = {
+    "add_features": ("src.data_loader", "add_features"),
+    "load_csv": ("src.data_loader", "load_csv"),
+    "load_yfinance": ("src.data_loader", "load_yfinance"),
     "set_seed": ("src.train.data_prep", "set_seed"),
     "create_windowed_sequences": ("src.train.data_prep", "create_windowed_sequences"),
     "make_loader": ("src.train.data_prep", "make_loader"),

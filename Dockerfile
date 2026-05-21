@@ -1,4 +1,7 @@
-FROM python:3.11-slim
+# Definir a imagem base através de ARG. Padrão é python:3.11-slim para prod e dev-cpu.
+# Para dev-cuda, utilize --build-arg BASE_IMAGE=pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+ARG BASE_IMAGE=python:3.11-slim
+FROM ${BASE_IMAGE}
 
 # Evita arquivos pyc e garante output limpo no terminal
 ENV PYTHONUNBUFFERED=1
@@ -32,8 +35,9 @@ RUN poetry config virtualenvs.create false && \
       pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
       pip install --no-cache-dir "mlflow>=3.0.0,<4.0.0" "yfinance>=0.2.50" "matplotlib>=3.9.0" "onnx>=1.21.0" "onnxscript>=0.7.0"; \
     else \
-      echo ">> Construindo imagem de DESENVOLVIMENTO CUDA/GPU (Instalando tudo, incluindo PyTorch CUDA)" && \
-      poetry install --no-interaction --no-ansi; \
+      echo ">> Construindo imagem de DESENVOLVIMENTO CUDA/GPU (Ignorando Torch do PyPI, assumindo base image PyTorch)" && \
+      poetry install --no-interaction --no-ansi --without train && \
+      pip install --no-cache-dir "mlflow>=3.0.0,<4.0.0" "yfinance>=0.2.50" "matplotlib>=3.9.0" "onnx>=1.21.0" "onnxscript>=0.7.0"; \
     fi
 
 COPY src/ ./src/

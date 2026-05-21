@@ -1,5 +1,7 @@
 import { state } from './state.js';
 
+let localTelemetryHistory = [];
+
 export async function loadTelemetry() {
   try {
     const response = await fetch('/telemetry');
@@ -12,7 +14,7 @@ export async function loadTelemetry() {
     errEl.style.color = errRate > 0 ? 'var(--danger)' : 'var(--success)';
 
     document.getElementById('tel-uptime').textContent = data.uptime_seconds + 's';
-    document.getElementById('tel-lat').textContent = data.inference.average_time_ms.toFixed(1) + ' ms';
+    document.getElementById('tel-lat').textContent = data.inference.last_time_ms.toFixed(1) + ' ms';
 
     const trainEl = document.getElementById('tel-train-time');
     if (trainEl) {
@@ -28,7 +30,21 @@ export async function loadTelemetry() {
       }
     }
 
-    const history = data.history || [];
+    // Mantém a história localmente
+    const snapshot = {
+      timestamp: new Date().toLocaleTimeString('pt-BR'),
+      cpu_percent: data.resources.cpu_percent,
+      memory_mb: data.resources.process_memory_mb,
+      predict_latency_ms: data.inference.last_time_ms,
+      predict_multi_latency_ms: data.inference.last_time_ms // Usando o último registrado
+    };
+    
+    localTelemetryHistory.push(snapshot);
+    if (localTelemetryHistory.length > 100) {
+      localTelemetryHistory.shift();
+    }
+
+    const history = localTelemetryHistory;
     const labels = history.map(h => h.timestamp);
     const cpuData = history.map(h => h.cpu_percent);
     const memData = history.map(h => h.memory_mb);
@@ -158,12 +174,12 @@ export async function loadPrometheusMetrics() {
       const value = parseFloat(matchValue[1]);
 
       if (line.includes('requests_total') || line.includes('requests_created') || line.includes('duration_seconds_count')) {
-        const statusMatch = line.match(/(?:status|status_code|http_status|code)="(\d+)"/);
+        const statusMatch = line.match(/(?:status|status_code|http_status|code)="(\d+xx|\d+)"/);
         if (statusMatch) {
-          const status = parseInt(statusMatch[1]);
-          if (status >= 200 && status < 300) status2xx += value;
-          else if (status >= 400 && status < 500) status4xx += value;
-          else if (status >= 500 && status < 600) status5xx += value;
+          const statusStr = statusMatch[1];
+          if (statusStr.startsWith('2')) status2xx += value;
+          else if (statusStr.startsWith('4')) status4xx += value;
+          else if (statusStr.startsWith('5')) status5xx += value;
         }
       }
 
