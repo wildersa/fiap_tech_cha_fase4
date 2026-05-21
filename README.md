@@ -1,4 +1,4 @@
-# Tech Challenge Fase 4 - LSTM & MLOps Pipeline
+# Tech Challenge Fase 4 - LSTM & MLOps
 
 Este projeto implementa uma solução para previsão de preços de fechamento de ações (com foco na PETR4.SA) utilizando Deep Learning (LSTM), com suporte a múltiplos modos de análise (univariado e multivariado) e um ciclo completo de MLOps contendo rastreamento de experimentos com MLflow, empacotamento em ONNX, telemetria integrada e um Dashboard interativo.
 
@@ -14,13 +14,13 @@ src/
     main.js                   # Bootstrap dos módulos do frontend.
     modules/                  # Inferência, treino, telemetria, ficha técnica e navegação.
     styles.css                # Estilos do portal.
-  train/                      # Pacote do pipeline de treinamento:
+  train/                      # Implementação interna do treinamento:
     __init__.py               # Ponto de entrada e re-exportação de compatibilidade.
     config.py                 # Argumentos e carregamento de configurações de treino.
     data_prep.py              # Pré-processamento, scalers configuráveis e janelamento de dados.
     trainer.py                # Loop de validação e métricas do modelo (MAE, RMSE, MAPE).
     artifacts.py              # Funções de exportação de plots e metadados.
-    pipeline.py               # Orquestrador principal do pipeline de treino.
+    pipeline.py               # Orquestrador interno usado pela CLI e pela API.
   train_cli.py                # CLI dedicada para treino com saída operacional e resumo JSON.
   data_loader.py              # Download de dados históricos via yfinance ou leitura de CSV.
   model.py                    # Definição da rede neural LSTM em PyTorch.
@@ -87,7 +87,7 @@ docker run --rm -p 8000:8000 tech-challenge-api:prod
 
 Focado em cientistas de dados para experimentação, novos treinamentos, busca de hiperparâmetros e auditoria de modelos no MLflow. Instala dependências robustas como PyTorch, MLflow e Matplotlib.
 
-#### 1. Pipeline de Treinamento (Técnico)
+#### 1. Fluxo Interno de Treinamento (Técnico)
 
 ```mermaid
 flowchart LR
@@ -103,7 +103,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph train_pipeline["Pipeline de Treinamento"]
+    subgraph train_flow["Treinamento interno"]
         T[Nova run candidata]
     end
 
@@ -137,7 +137,7 @@ flowchart LR
   poetry run python src/train_cli.py --symbol PETR4.SA --max-epochs 150 --feature-mode single
   ```
 
-  Esse modo roda o pipeline diretamente no terminal. Ele escreve logs no stdout, registra a run no MLflow, salva artefatos em disco e imprime um resumo final com resposta JSON no próprio terminal.
+  Esse modo executa o treino pelo terminal. Ele escreve logs no stdout, registra a run no MLflow, salva artefatos em disco e imprime um resumo final com resposta JSON no próprio terminal.
 
 - **Treinamento via API (resposta estruturada)**:
 
@@ -159,7 +159,7 @@ flowchart LR
 
   Esse modo retorna JSON com `status`, `metrics`, `output_dir` e `message`, além de atualizar o melhor modelo elegível quando a regra Champion/Challenger aprovar a promoção.
 
-  O parâmetro `end_date`, quando informado, representa a última data desejada no dataset de treino. O pipeline registra nos metadados e no MLflow a data solicitada, a data real disponível no dataset e as janelas efetivas de treino, validação e teste.
+  O parâmetro `end_date`, quando informado, representa a última data desejada no dataset de treino. A execução registra nos metadados e no MLflow a data solicitada, a data real disponível no dataset e as janelas efetivas de treino, validação e teste.
 
 - **Somente Inferência**:
   Defina `ENABLE_TRAINING_API=false` e aponte `MODEL_DIR`/`MODEL_DIR_MULTI` para os artefatos empacotados. Nesse modo a API não consulta MLflow, não promove modelos e usa exatamente o modelo apontado:
@@ -197,7 +197,7 @@ A documentação interativa completa está disponível em `http://127.0.0.1:8000
 
 #### Treinamento & MLOps (SOMENTE DISPONÍVEL EM MODO DEV/TRAIN)
 
-- `POST /train`: Dispara síncronamente o pipeline de treinamento e registra os artefatos no MLflow. Disponível apenas em modo dev/train.
+- `POST /train`: Dispara síncronamente o treino e registra os artefatos no MLflow. Disponível apenas em modo dev/train.
 - `GET /runs`: Retorna o histórico de todas as execuções de treinamento gravadas no MLflow. Disponível apenas em modo dev/train.
 - `DELETE /runs/{run_id}`: Exclui logicamente uma run específica no MLflow. Disponível apenas em modo dev/train.
 
@@ -238,7 +238,7 @@ A regra de escolha prioriza utilidade contra o baseline:
 Para contornar as vulnerabilidades do carregador padrão do PyTorch (`torch.load` baseado no formato pickle inseguro), adotamos:
 
 1. **Inferência ONNX**: A API de produção carrega e executa modelos no formato estático do **ONNX Runtime** (`model.onnx`), imune a RCEs.
-2. **Safetensors**: O pipeline de treinamento exporta pesos estruturados no formato seguro **`model.safetensors`**, salvando tensores binários estruturados sem execução de código Python arbitrária.
+2. **Safetensors**: O treino exporta pesos estruturados no formato seguro **`model.safetensors`**, salvando tensores binários estruturados sem execução de código Python arbitrária.
 
 ### Telemetria e Monitoramento
 
