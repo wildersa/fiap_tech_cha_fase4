@@ -60,15 +60,6 @@ Focado em baixo consumo de memória, inicialização imediata e segurança. Util
 
 - **Dashboard Web**: Acesse `http://127.0.0.1:8000/dashboard` para interagir com o modelo, visualizar a telemetria em tempo real e consultar a ficha técnica.
 
-#### Deploy Serverless (Vercel)
-
-O projeto possui um arquivo `vercel.json` configurado para deploy imediato na Vercel.
-
-Para realizar o deploy:
-
-1. Conecte o repositório na sua conta Vercel.
-2. Nenhuma variável de ambiente adicional é necessária para a inferência, pois o código assume os diretórios padrão.
-
 #### Build da imagem Docker (Produção / Inferência Empacotada)
 
 A imagem de produção copia os artefatos de `MODEL_BUNDLE_DIR` para dentro de `/app/models`. Esse é o fluxo para deploy imutável: a API não consulta MLflow e usa apenas o modelo já empacotado.
