@@ -10,10 +10,5 @@
       "source": "/(.*)",
       "destination": "/src/api.py"
     }
-  ],
-  "functions": {
-    "src/api.py": {
-      "includeFiles": "{models/**/*.{onnx,onnx.data,joblib,json,png},src/**}"
-    }
-  }
+  ]
 }
