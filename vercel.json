@@ -13,14 +13,7 @@
   ],
   "functions": {
     "src/api.py": {
-      "includeFiles": [
-        "models/**/*.onnx",
-        "models/**/*.onnx.data",
-        "models/**/*.joblib",
-        "models/**/*.json",
-        "models/**/*.png",
-        "src/**"
-      ]
+      "includeFiles": "{models/**/*.{onnx,onnx.data,joblib,json,png},src/**}"
     }
   }
 }
