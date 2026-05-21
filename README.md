@@ -269,13 +269,4 @@ A tela de telemetria consome o endpoint `/telemetry` e exibe informações sobre
 O intuito dessa tela é demonstrar a capacidade de monitoramento em tempo real da aplicação, facilitando a identificação de gargalos e problemas de performance, sem a necessidade de instalação de ferramentas externas como o Prometheus ou Grafana.
 
 ---
-*Referências de Pesquisa:*
-
-- [Predicting the Stock Market Using LSTM, XGBoost and Google Trends](https://ijisae.org/index.php/IJISAE/article/view/5396/4121)
-- [Stock Prediction Using the LSTM Algorithm with Deep Learning Method](https://etasr.com/index.php/ETASR/article/view/12685/5689)
-- [A Comprehensive Study on Stock Price Prediction using LSTM](https://arxiv.org/abs/2303.02223)
-- [Kaggle Gold Price Prediction](https://www.kaggle.com/code/farzadnekouei/gold-price-prediction-lstm-96-accuracy)
-- Aulas =)
-
----
 *Projeto desenvolvido para o Tech Challenge FIAP.*
