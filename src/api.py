@@ -415,10 +415,10 @@ def _current_champion_record() -> dict | None:
     ])
 
 
-def _selection_payload(record: dict | None) -> dict:
+def _selection_payload(record: dict | None, default_model_type: str = "single") -> dict:
     if record is None:
         return {
-            "selected_model_type": "single",
+            "selected_model_type": default_model_type,
             "has_champion": False,
             "reason": "Nenhum modelo elegivel superou o baseline em MAPE.",
         }
@@ -448,6 +448,19 @@ def _selection_payload(record: dict | None) -> dict:
             ],
         },
     }
+
+
+def _model_champions_payload() -> dict:
+    single_record = _model_dir_selection_record("single", MODEL_DIR)
+    multi_record = _model_dir_selection_record("multi", MODEL_DIR_MULTI)
+    global_record = select_champion_record([single_record, multi_record])
+
+    payload = _selection_payload(global_record)
+    payload["champions"] = {
+        "single": _selection_payload(single_record, "single"),
+        "multi": _selection_payload(multi_record, "multi"),
+    }
+    return payload
 
 
 def _section_from_flat(metrics: dict, prefix: str) -> dict:
@@ -1105,14 +1118,14 @@ def model_card(type: str = "single"):
 
 @app.get(
     "/model-champion",
-    summary="Modelo Campeão Atual",
-    description="Aplica a regra oficial de seleção Champion vs Baseline e informa qual tipo de modelo deve alimentar o card e a inferência.",
-    response_description="Resumo do campeão global entre modelos univariado e multivariado.",
+    summary="Modelos Campeões Atuais",
+    description="Aplica a regra oficial de seleção Champion vs Baseline e informa os campeões univariado e multivariado, além do melhor global usado por type=best.",
+    response_description="Resumo dos campeões por tipo e do campeão global entre modelos univariado e multivariado.",
     tags=["Monitoramento & Diagnóstico"]
 )
 def model_champion():
     refresh_models_for_runtime(force_best=True)
-    return _selection_payload(_current_champion_record())
+    return _model_champions_payload()
 
 
 @app.get(
@@ -1345,16 +1358,4 @@ def render_frontend_dashboard() -> HTMLResponse:
     response_class=HTMLResponse
 )
 def dashboard():
-    return render_frontend_dashboard()
-
-
-@app.get(
-    "/dashboard-modular",
-    summary="Dashboard Visual Web Modular",
-    description="Alias da interface gráfica modular em src/frontend.",
-    response_description="Interface gráfica completa do portal com HTML, CSS e JS separados.",
-    tags=["Visualização"],
-    response_class=HTMLResponse
-)
-def dashboard_modular():
     return render_frontend_dashboard()

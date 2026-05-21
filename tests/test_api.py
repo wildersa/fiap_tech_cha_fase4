@@ -205,6 +205,71 @@ def test_model_card_types():
         assert response_default.status_code == 200
         assert response_default.json()["model_overview"]["model_name"] == "StockLSTM (Univariado)"
 
+
+@patch("src.api.refresh_models_for_runtime")
+def test_model_champion_returns_single_and_multi_champions(mock_refresh, tmp_path):
+    single_dir = tmp_path / "single"
+    multi_dir = tmp_path / "multi"
+    single_dir.mkdir()
+    multi_dir.mkdir()
+
+    (single_dir / "metrics.json").write_text(
+        """
+        {
+          "lstm_test": {"mape_pct": 1.0},
+          "baseline_test": {"mape_pct": 1.2},
+          "relative_gain_vs_baseline_pct": {"mape_pct": 16.6667},
+          "directional_accuracy_test_lstm_pct": 55.0
+        }
+        """,
+        encoding="utf-8",
+    )
+    (single_dir / "metadata.json").write_text(
+        """
+        {
+          "run_id": "single-run",
+          "feature_mode": "single",
+          "target_mode": "log_returns",
+          "window_size": 20
+        }
+        """,
+        encoding="utf-8",
+    )
+    (multi_dir / "metrics.json").write_text(
+        """
+        {
+          "lstm_test": {"mape_pct": 0.9},
+          "baseline_test": {"mape_pct": 1.2},
+          "relative_gain_vs_baseline_pct": {"mape_pct": 25.0},
+          "directional_accuracy_test_lstm_pct": 57.0
+        }
+        """,
+        encoding="utf-8",
+    )
+    (multi_dir / "metadata.json").write_text(
+        """
+        {
+          "run_id": "multi-run",
+          "feature_mode": "custom",
+          "target_mode": "log_returns",
+          "window_size": 20
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    with patch("src.api.MODEL_DIR", single_dir), patch("src.api.MODEL_DIR_MULTI", multi_dir):
+        response = client.get("/model-champion")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["selected_model_type"] == "multi"
+    assert payload["run_id"] == "multi-run"
+    assert payload["champions"]["single"]["has_champion"] is True
+    assert payload["champions"]["single"]["run_id"] == "single-run"
+    assert payload["champions"]["multi"]["has_champion"] is True
+    assert payload["champions"]["multi"]["run_id"] == "multi-run"
+
 def test_model_image_not_found():
     with patch("src.api.MODEL_DIR", Path("/non/existent/single")), patch("src.api.MODEL_DIR_MULTI", Path("/non/existent/multi")):
         response_single = client.get("/model-image?type=single")

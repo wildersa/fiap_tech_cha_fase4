@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const baseUrl = process.env.PORTAL_URL || 'http://127.0.0.1:8000/dashboard-modular';
+const baseUrl = process.env.PORTAL_URL || 'http://127.0.0.1:8000/dashboard';
 
 function messageBody(message) {
   return {

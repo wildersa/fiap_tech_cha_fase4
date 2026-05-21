@@ -9,7 +9,7 @@ O sistema foi arquitetado para rodar em dois modos independentes de instalação
 ```text
 src/
   api.py                      # API FastAPI para inferência, telemetria e renderização do Dashboard.
-  frontend/                   # Dashboard modular servido por /dashboard e /dashboard-modular.
+  frontend/                   # Dashboard modular servido por /dashboard.
     index.html                # Shell HTML do portal.
     main.js                   # Bootstrap dos módulos do frontend.
     modules/                  # Inferência, treino, telemetria, ficha técnica e navegação.
@@ -68,7 +68,6 @@ A documentação interativa completa está disponível em `http://127.0.0.1:8000
 ##### Monitoramento, Diagnóstico & Interface
 
 - `GET /dashboard`: Renderiza a interface gráfica do painel de controle.
-- `GET /dashboard-modular`: Alias da interface modular do painel.
 - `GET /health`: Liveness/readiness, retornando o status operacional e pasta de modelos.
 - `GET /model-card`: Retorna a ficha técnica detalhada do modelo ativo (`?type=single`, `?type=multi` ou `?type=best`).
 - `GET /model-champion`: Retorna o campeão global atual pela regra Champion/Challenger.
