@@ -169,21 +169,13 @@ flowchart LR
   ```
 
 - **Build da imagem Docker (Treino / Desenvolvimento)**:
-  Você pode escolher construir a imagem de desenvolvimento com suporte a CPU ou com GPU (CUDA) para o PyTorch. Nesse modo, a pasta de modelos pode ser montada por volume e apontada por env no runtime:
-  - **Opção 1: Treino em CPU (Leve)** (Recomendado para testes locais sem GPU dedicada):
+  Use a imagem de desenvolvimento em CPU. Nesse modo, a pasta de modelos pode ser montada por volume e apontada por env no runtime:
+  - **Treino em CPU (Leve)**:
 
       ```bash
       docker build --build-arg ENV=dev-cpu --build-arg ENABLE_TRAINING_API=true --build-arg MODEL_DIR=/workspace/models/lstm_petr4 --build-arg MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi -t tech-challenge-api:dev-cpu .
 
       docker run --rm -p 8000:8000 -e ENABLE_TRAINING_API=true -e MODEL_DIR=/workspace/models/lstm_petr4 -e MODEL_DIR_MULTI=/workspace/models/lstm_petr4_multi -v "$PWD/models:/workspace/models" tech-challenge-api:dev-cpu
-      ```
-
-  - **Opção 2: Treino em GPU (CUDA - Pesado)** (Recomendado para treinamento com aceleração de hardware):
-
-      Para viabilizar a compilação e evitar baixar gigabytes via pip durante o build, utilizamos a imagem oficial do PyTorch pré-compilada com CUDA como base:
-
-      ```bash
-      docker build --build-arg BASE_IMAGE=pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime --build-arg ENV=dev-cuda --build-arg ENABLE_TRAINING_API=true -t tech-challenge-api:dev-cuda .
       ```
 
 ### Endpoints da API (Swagger / OpenAPI)
