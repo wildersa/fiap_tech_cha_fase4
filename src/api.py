@@ -4,7 +4,7 @@ API de Inferência e MLOps para o modelo StockLSTM.
 Este arquivo implementa o servidor FastAPI responsável por:
 1. Servir predições D+1 (próximo fechamento) univariadas e multivariadas.
 2. Fornecer métricas de telemetria e saúde do sistema.
-3. Gerenciar o pipeline de treinamento e promoção automática de modelos (Champion/Challenger).
+3. Gerenciar o treinamento e a promoção automática de modelos (Champion/Challenger).
 4. Em modo dev/train, sincronizar artefatos do MLflow com MODEL_DIR/MODEL_DIR_MULTI.
 """
 
@@ -19,6 +19,7 @@ except Exception:
 import json
 import os
 import time
+import traceback
 from collections import deque
 from functools import lru_cache
 from pathlib import Path
@@ -1182,15 +1183,15 @@ def delete_run(run_id: str):
 
 @app.post(
     "/train",
-    summary="Iniciar Pipeline de Treinamento",
-    description="Dispara de forma síncrona o pipeline completo de treinamento. A promoção automática segue a regra Champion/Challenger baseada em ganho vs baseline de MAPE.",
+    summary="Iniciar Treinamento",
+    description="Dispara de forma síncrona o treinamento. A promoção automática segue a regra Champion/Challenger baseada em ganho vs baseline de MAPE.",
     response_description="Status de sucesso do treinamento, métricas finais obtidas e pasta de saída.",
     tags=["Treinamento & MLOps"],
     include_in_schema=ENABLE_TRAINING_API,
 )
 def train_model(req: TrainRequest):
     """
-    Aciona o pipeline de treinamento (src/train/pipeline.py).
+    Aciona o treinamento pela implementação interna.
     Após o término, limpa o cache dos modelos para carregar o novo campeão, se houver.
     """
     if not ENABLE_TRAINING_API:
@@ -1216,6 +1217,7 @@ def train_model(req: TrainRequest):
             "message": "Treinamento finalizado com sucesso."
         }
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro durante o treinamento: {str(e)}")
 
 

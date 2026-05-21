@@ -451,6 +451,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             output_names=["output"],
             dynamic_shapes=dynamic_shapes,
         )
+        print("Modelo ONNX exportado com sucesso (model.onnx).")
 
         resolved_selected_features = feature_cols if cfg.feature_mode in {"technical_features", "custom"} else None
 
@@ -471,6 +472,7 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
             "feature_registry_version": "2026-05-19"
         }
         joblib.dump(preprocess, save_dir / "preprocessor.joblib")
+        print("Preprocessador salvo com sucesso (preprocessor.joblib).")
 
         # Salva metadados de linhagem e governança
         metadata = {
@@ -503,30 +505,43 @@ def run_training_pipeline(cfg: TrainConfig, csv_path: str | None = None) -> dict
         write_json(save_dir / "metadata.json", metadata)
         write_json(save_dir / "metrics.json", metrics)
         write_json(save_dir / "history.json", history)
+        print("Metadados, metricas e historico salvos com sucesso.")
 
         # 9. Log de predições do conjunto de teste para auditoria
-        predictions = pd.DataFrame(
-            {
-                "target_date": pd.to_datetime(dates_test),
-                "last_close": last_close_test,
-                "actual_close": true_test_close,
-                "predicted_close_lstm": pred_test_close,
-                "baseline_last_close": baseline_test_close,
-                "absolute_error_lstm": np.abs(true_test_close - pred_test_close),
-                "absolute_error_baseline": np.abs(true_test_close - baseline_test_close),
-            }
-        )
-        predictions.to_csv(save_dir / "test_predictions.csv", index=False)
+        try:
+            predictions = pd.DataFrame(
+                {
+                    "target_date": pd.to_datetime(dates_test),
+                    "last_close": last_close_test,
+                    "actual_close": true_test_close,
+                    "predicted_close_lstm": pred_test_close,
+                    "baseline_last_close": baseline_test_close,
+                    "absolute_error_lstm": np.abs(true_test_close - pred_test_close),
+                    "absolute_error_baseline": np.abs(true_test_close - baseline_test_close),
+                }
+            )
+            predictions.to_csv(save_dir / "test_predictions.csv", index=False)
+            print("Predicoes do teste salvas com sucesso (test_predictions.csv).")
+        except Exception as e:
+            print(f"Aviso: falha ao salvar predicoes do teste: {e}")
         
         # Gera gráfico de performance
-        plot_performance(
-            save_dir, df_feat, train_end, val_end, dates_test, 
-            true_test_close, pred_test_close, metrics, cfg.symbol, 
-            cfg.feature_mode, cfg.target_mode
-        )
+        try:
+            plot_performance(
+                save_dir, df_feat, train_end, val_end, dates_test, 
+                true_test_close, pred_test_close, metrics, cfg.symbol, 
+                cfg.feature_mode, cfg.target_mode
+            )
+            print("Grafico de performance salvo com sucesso (model_performance.png).")
+        except Exception as e:
+            print(f"Aviso: falha ao gerar grafico de performance: {e}")
         
         # Envia todos os artefatos locais para o MLflow
-        mlflow.log_artifacts(str(save_dir))
+        try:
+            mlflow.log_artifacts(str(save_dir))
+            print("Artefatos locais enviados para o MLflow com sucesso.")
+        except Exception as e:
+            print(f"Aviso: falha ao enviar artefatos para o MLflow: {e}")
         
         if not is_better:
             try:
